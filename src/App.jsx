@@ -503,6 +503,8 @@ function RoutedContent({ content, language, theme }) {
 }
 
 function Home({ content, language, theme }) {
+  const heroRef = useRef(null);
+
   // Load Storia images - use exact same pattern as Portfolio
   const storiaImages = Object.values(
     import.meta.glob("/src/assets/Photos/Storia/**/*.{jpg,jpeg,png}", {
@@ -563,6 +565,24 @@ function Home({ content, language, theme }) {
     staffImageMap[fname] = url;
   });
 
+  const handleHeroScroll = (event) => {
+    event.preventDefault();
+
+    const hero = heroRef.current;
+    const navbarHeight =
+      document.querySelector(".navbar")?.getBoundingClientRect().height ?? 0;
+    const targetTop = hero
+      ? hero.getBoundingClientRect().top + window.scrollY + hero.offsetHeight
+      : (document.getElementById("storia")?.offsetTop ?? 0);
+
+    window.history.replaceState(null, "", "#storia");
+    window.scrollTo({
+      top: Math.max(0, Math.round(targetTop - navbarHeight)),
+      left: 0,
+      behavior: "smooth",
+    });
+  };
+
   return (
     <>
       <div
@@ -572,6 +592,7 @@ function Home({ content, language, theme }) {
       ></div>
 
       <header
+        ref={heroRef}
         className="hero"
         style={{
           backgroundImage:
@@ -606,6 +627,7 @@ function Home({ content, language, theme }) {
           href="#storia"
           className="scroll-indicator"
           aria-label={content.home.scrollLabel}
+          onClick={handleHeroScroll}
         >
           <span></span>
         </a>
