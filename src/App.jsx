@@ -62,7 +62,7 @@ const translations = {
       kicker: "Studio Fotografico a Salerno",
       heroTitle: "Catturiamo l'Essenza dei Tuoi Ricordi.",
       heroText: "Da 60 anni, il punto di riferimento per la fotografia a Salerno.",
-      heroCta: "Vienii a Trovarci",
+      heroCta: "Vieni a Trovarci",
       heroPrint: "Invia le foto da stampare su WhatsApp",
       scrollLabel: "Scorri per saperne di più",
       storyTitle: "Un pò di storia",
