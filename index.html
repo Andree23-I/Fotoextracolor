@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="it">
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/jpeg" href="%BASE_URL%logo.jpeg" />
+        <script type="text/javascript">
+            // Single Page Apps for GitHub Pages
+            // https://github.com/rafgraph/spa-github-pages
+            (function (l) {
+                if (l.search[1] === "/") {
+                    var decoded = l.search
+                        .slice(1)
+                        .split("&")
+                        .map(function (s) {
+                            return s.replace(/~and~/g, "&");
+                        })
+                        .join("?");
+                    window.history.replaceState(
+                        null,
+                        null,
+                        l.pathname.slice(0, -1) + decoded + l.hash,
+                    );
+                }
+            })(window.location);
+        </script>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="theme-color" content="#d4af37" />
+        <style>
+            html,
+            body {
+                margin: 0;
+                min-height: 100%;
+                background: #111111;
+            }
+
+            html[data-theme="light"],
+            html[data-theme="light"] body {
+                background: #f6f2e8;
+            }
+
+            #root {
+                min-height: 100vh;
+            }
+
+            .app-boot-screen {
+                min-height: 100vh;
+                display: grid;
+                place-items: center;
+                background: #111111;
+            }
+
+            .app-boot-ring {
+                width: 42px;
+                height: 42px;
+                border: 1px solid rgba(212, 175, 55, 0.28);
+                border-top-color: #d4af37;
+                border-radius: 50%;
+                animation: appBootSpin 0.9s linear infinite;
+            }
+
+            @keyframes appBootSpin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+        </style>
+        <title>Foto Extracolor – Studio Fotografico a Salerno</title>
+        
+        <!-- Primary Meta Tags -->
+        <meta name="title" content="Foto Extracolor – Fotografia Professionale a Salerno" />
+        <meta name="description" content="Da 60 anni, Foto Extracolor è il punto di riferimento per la fotografia a Salerno. Servizi professionali per matrimoni, ritratti, eventi e shooting in studio. Scopri il nostro portfolio." />
+        <meta name="keywords" content="fotografo Salerno, studio fotografico Salerno, fotografia matrimonio, ritratti, eventi, foto sposi, Foto Extracolor, servizi fotografici" />
+        <meta name="author" content="Foto Extracolor" />
+        <meta name="robots" content="index, follow" />
+        <meta name="language" content="Italian" />
+
+        <!-- Open Graph / Facebook -->
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://fotoextracolor.it/" />
+        <meta property="og:title" content="Foto Extracolor – Fotografia Professionale a Salerno" />
+        <meta property="og:description" content="Dal 1970, Foto Extracolor è il punto di riferimento per la fotografia a Salerno. Servizi professionali per matrimoni, ritratti e eventi." />
+        <meta property="og:image" content="https://fotoextracolor.it/logo.jpeg" />
+        <meta property="og:site_name" content="Foto Extracolor" />
+        <meta property="og:locale" content="it_IT" />
+
+        <!-- Twitter -->
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content="https://fotoextracolor.it/" />
+        <meta property="twitter:title" content="Foto Extracolor – Fotografia Professionale a Salerno" />
+        <meta property="twitter:description" content="Dal 1970, Foto Extracolor è il punto di riferimento per la fotografia a Salerno. Servizi professionali per matrimoni, ritratti e eventi." />
+        <meta property="twitter:image" content="https://fotoextracolor.it/logo.jpeg" />
+    </head>
+    <body>
+        <div id="root">
+            <div class="app-boot-screen" aria-hidden="true">
+                <span class="app-boot-ring"></span>
+            </div>
+        </div>
+        <script type="module" src="/src/main.jsx"></script>
+    </body>
+</html>
