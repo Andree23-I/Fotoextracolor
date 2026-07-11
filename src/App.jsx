@@ -569,8 +569,8 @@ function Home({ content, language, theme }) {
         <div className="hero-inner">
           <div className="hero-content fade-in">
             <span className="section-kicker">{content.home.kicker}</span>
-            <h1>{content.home.heroTitle}</h1>
-            <p>{content.home.heroText}</p>
+            <h1 className="hero-text-effect">{content.home.heroTitle}</h1>
+            <p className="hero-text-effect">{content.home.heroText}</p>
             <Link
               to={{ pathname: "/", hash: "#contatti" }}
               className="btn-primary"
