@@ -513,7 +513,19 @@ function Home({ content, language, theme }) {
   );
 
   useEffect(() => {
-    const elements = document.querySelectorAll(".fade-in");
+    const animationClasses = [
+      ".fade-in",
+      ".fade-in-left",
+      ".fade-in-right",
+      ".fade-in-scale",
+      ".fade-in-blur",
+      ".elegant-fade-up",
+      ".elegant-glow",
+      ".elegant-slide-left",
+      ".elegant-slide-right",
+      ".elegant-scale-glow",
+    ];
+    const elements = document.querySelectorAll(animationClasses.join(", "));
     elements.forEach((el) => el.classList.remove("visible"));
 
     const observer = new IntersectionObserver(
@@ -521,6 +533,8 @@ function Home({ content, language, theme }) {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add("visible");
+          } else {
+            entry.target.classList.remove("visible");
           }
         });
       },
@@ -569,8 +583,8 @@ function Home({ content, language, theme }) {
         <div className="hero-inner">
           <div className="hero-content fade-in">
             <span className="section-kicker">{content.home.kicker}</span>
-            <h1 className="hero-text-effect">{content.home.heroTitle}</h1>
-            <p className="hero-text-effect">{content.home.heroText}</p>
+            <h1>{content.home.heroTitle}</h1>
+            <p>{content.home.heroText}</p>
             <Link
               to={{ pathname: "/", hash: "#contatti" }}
               className="btn-primary"
@@ -599,21 +613,21 @@ function Home({ content, language, theme }) {
 
       <section id="storia" className="story-section">
         <div className="section-content">
-          <div className="text-content fade-in">
-            <h2>{content.home.storyTitle}</h2>
+          <div className="text-content fade-in-left">
+            <h2 className="elegant-fade-up">{content.home.storyTitle}</h2>
             <p>{renderStoryText(content.home.storyText1, "Riccardo Capasso", "Gabriela Donadio")}</p>
             <p>{renderStoryText(content.home.storyText2, "Riccardo")}</p>
           </div>
-          <div className="image-content fade-in">
+          <div className="image-content fade-in-right">
             <Carousel images={storiaImages} />
           </div>
         </div>
       </section>
 
       <section id="servizi" className="services-preview">
-        <span className="section-kicker fade-in">{content.home.servicesKicker}</span>
-        <h2 className="fade-in">{content.home.servicesTitle}</h2>
-        <p className="services-preview-text fade-in">
+        <span className="section-kicker elegant-slide-left">{content.home.servicesKicker}</span>
+        <h2 className="elegant-glow">{content.home.servicesTitle}</h2>
+        <p className="services-preview-text fade-in-blur stagger-2">
           {content.home.servicesText}
         </p>
         <div className="services-preview-grid">
@@ -621,9 +635,8 @@ function Home({ content, language, theme }) {
             const Icon = service.icon;
             return (
               <div
-                className="service-chip fade-in"
+                className={`service-chip fade-in-scale stagger-${(idx % 5) + 1}`}
                 key={service.title}
-                style={{ transitionDelay: `${(idx % 6) * 0.06}s` }}
               >
                 <span className="service-chip-icon">
                   <Icon />
@@ -633,14 +646,14 @@ function Home({ content, language, theme }) {
             );
           })}
         </div>
-        <Link to="/servizi" className="btn-secondary">
+        <Link to="/servizi" className="btn-secondary fade-in">
           {content.home.servicesCta}
         </Link>
       </section>
 
       <section id="staff" className="staff-section">
-        <span className="section-kicker fade-in">{content.home.staffKicker}</span>
-        <h2 className="fade-in">{content.home.staffTitle}</h2>
+        <span className="section-kicker elegant-scale-glow">{content.home.staffKicker}</span>
+        <h2 className="elegant-fade-up">{content.home.staffTitle}</h2>
         <div className="staff-grid">
             {(() => {
               const getStaffImage = (name) => {
@@ -651,10 +664,10 @@ function Home({ content, language, theme }) {
                 return key ? staffImageMap[key] : null;
               };
 
-              return STAFF[language].map((member) => {
+              return STAFF[language].map((member, idx) => {
                 const img = getStaffImage(member.name);
                 return (
-                  <div className="staff-card fade-in" key={member.name}>
+                  <div className={`staff-card fade-in-scale stagger-${(idx % 5) + 1}`} key={member.name}>
                     {img ? (
                       <div className="staff-avatar" aria-hidden="true">
                         <img
@@ -680,10 +693,10 @@ function Home({ content, language, theme }) {
         </div>
       </section>
 
-      <section id="contatti" className="contact-section fade-in">
-        <h2>{content.home.contactTitle}</h2>
+      <section id="contatti" className="contact-section">
+        <h2 className="elegant-slide-right">{content.home.contactTitle}</h2>
         <div className="contact-container">
-          <div className="contact-box">
+          <div className="contact-box fade-in-left">
             <div className="info">
               <h3>Foto Extracolor</h3>
               <p>
@@ -792,7 +805,7 @@ function Home({ content, language, theme }) {
           </div>
 
           <div className="contact-right">
-            <div className="map-container fade-in">
+            <div className="map-container fade-in-right stagger-1">
               <iframe
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3023.2394982647715!2d14.7766!3d40.6781!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x133bc25c9b19e2bb%3A0x8e8334812a23075f!2sVia%20Raffaele%20Ricci%2C%2062%2C%2084126%20Salerno%20SA%2C%20Italy!5e0!3m2!1sen!2sus!4v1717171717171!5m2!1sen!2sus"
                 width="100%"
@@ -804,7 +817,7 @@ function Home({ content, language, theme }) {
                 title={content.home.mapTitle}
               ></iframe>
             </div>
-            <GoogleReviewsWidget className="contact-reviews" content={content.reviews} />
+            <GoogleReviewsWidget className="contact-reviews fade-in-scale stagger-2" content={content.reviews} />
           </div>
         </div>
       </section>
