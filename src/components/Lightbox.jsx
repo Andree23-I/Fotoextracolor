@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import "./Lightbox.css";
 
 function Lightbox({ images = [], index, onClose, onPrev, onNext }) {
@@ -21,7 +22,10 @@ function Lightbox({ images = [], index, onClose, onPrev, onNext }) {
 
   const hasMultiple = images.length > 1;
 
-  return (
+  // The portfolio page uses a transform for its entrance animation. Rendering
+  // the lightbox in document.body keeps its fixed positioning relative to the
+  // viewport instead of that transformed page container.
+  return createPortal(
     <div className="lightbox" onClick={onClose} role="dialog" aria-modal="true">
       <button className="lightbox-close" onClick={onClose} aria-label="Chiudi">
         <svg
@@ -102,7 +106,8 @@ function Lightbox({ images = [], index, onClose, onPrev, onNext }) {
           {index + 1} / {images.length}
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 
