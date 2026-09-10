@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import './AdminPage.css';
 
 export default function AdminPage() {
@@ -42,6 +43,24 @@ export default function AdminPage() {
   const [historyDeviceFilter, setHistoryDeviceFilter] = useState('all'); // 'all' | 'Desktop' | 'Mobile' | 'Tablet'
   const [selectedSessionDetail, setSelectedSessionDetail] = useState(null);
   const [clearingHistory, setClearingHistory] = useState(false);
+
+  // Lock body scroll and listen for Escape key when session detail modal is open
+  useEffect(() => {
+    if (!selectedSessionDetail) return;
+    
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setSelectedSessionDetail(null);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedSessionDetail]);
 
   // Fetch Config, Portfolio, and Services
   useEffect(() => {
@@ -1083,12 +1102,18 @@ export default function AdminPage() {
             )}
 
             {/* DETAIL MODAL FOR INSPECTING A SINGLE VISIT SESSION */}
-            {selectedSessionDetail && (
-              <div className="admin-modal-backdrop" onClick={() => setSelectedSessionDetail(null)}>
+            {selectedSessionDetail && typeof document !== 'undefined' && createPortal(
+              <div 
+                className="admin-modal-backdrop" 
+                onClick={() => setSelectedSessionDetail(null)}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="admin-modal-title"
+              >
                 <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
                   <div className="admin-modal-header">
-                    <h3>Dettaglio Accesso Visitatore</h3>
-                    <button className="admin-modal-close" onClick={() => setSelectedSessionDetail(null)}>✕</button>
+                    <h3 id="admin-modal-title">Dettaglio Accesso Visitatore</h3>
+                    <button className="admin-modal-close" onClick={() => setSelectedSessionDetail(null)} aria-label="Chiudi">✕</button>
                   </div>
                   
                   <div className="admin-modal-body">
@@ -1166,7 +1191,8 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         )}
