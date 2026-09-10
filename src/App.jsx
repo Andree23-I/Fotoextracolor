@@ -170,7 +170,11 @@ function usePageMode() {
     window.addEventListener("storage", handleSync);
 
     fetch("/api.php?action=getConfig")
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        return JSON.parse(text);
+      })
       .then((data) => {
         if (data && data.pageMode) {
           setMode(data.pageMode);
@@ -1834,7 +1838,11 @@ function useDynamicServices() {
 
   useEffect(() => {
     fetch('/api.php?action=getServices')
-      .then(res => res.json())
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        return JSON.parse(text);
+      })
       .then(data => {
         if (data && data.it && data.en && data.it.length > 0) {
           setDynamicServices(data);
@@ -1935,7 +1943,11 @@ function Portfolio({ content, language }) {
 
   useEffect(() => {
     fetch('/api.php?action=getPortfolio')
-      .then(res => res.json())
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        return JSON.parse(text);
+      })
       .then(data => {
         if (data && data.categories) {
           setSavedCategories(data.categories);

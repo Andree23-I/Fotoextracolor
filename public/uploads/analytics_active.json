@@ -1,0 +1,40 @@
+{
+  "sess_mtvuvvt2_so6qz": {
+    "sessionId": "sess_mtvuvvt2_so6qz",
+    "visitorId": "vis_mtvtsgtj_koi53",
+    "ip": "127.0.0.1",
+    "deviceType": "Desktop",
+    "os": "Windows 10/11",
+    "browser": "Chrome",
+    "screen": "1440x810",
+    "currentPage": "/admin",
+    "referrer": "Navigazione Interna",
+    "language": "it",
+    "theme": "dark",
+    "firstSeen": 1789064957,
+    "lastPing": 1789065017,
+    "pageViews": 1,
+    "pages": [
+      "/admin"
+    ]
+  },
+  "sess_mtvuv0t2_f3l59": {
+    "sessionId": "sess_mtvuv0t2_f3l59",
+    "visitorId": "vis_mtvtsgtj_koi53",
+    "ip": "127.0.0.1",
+    "deviceType": "Desktop",
+    "os": "Windows 10/11",
+    "browser": "Chrome",
+    "screen": "1440x810",
+    "currentPage": "/admin",
+    "referrer": "Navigazione Interna",
+    "language": "it",
+    "theme": "dark",
+    "firstSeen": 1789064957,
+    "lastPing": 1789065017,
+    "pageViews": 1,
+    "pages": [
+      "/admin"
+    ]
+  }
+}

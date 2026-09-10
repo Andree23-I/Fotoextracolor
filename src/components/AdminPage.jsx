@@ -65,7 +65,11 @@ export default function AdminPage() {
   // Fetch Config, Portfolio, and Services
   useEffect(() => {
     fetch('/api.php?action=getConfig')
-      .then(res => res.json())
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        return JSON.parse(text);
+      })
       .then(data => {
         if (data && data.pageMode) {
           setPageMode(data.pageMode);
@@ -78,7 +82,11 @@ export default function AdminPage() {
       });
 
     fetch('/api.php?action=getPortfolio')
-      .then(res => res.json())
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        return JSON.parse(text);
+      })
       .then(data => {
         if (data && data.categories) {
           setCategories(data.categories);
@@ -87,21 +95,25 @@ export default function AdminPage() {
         setIsLoading(false);
       })
       .catch(err => {
-        console.error("Errore fetch admin:", err);
+        console.warn("Avviso caricamento portfolio:", err.message || err);
         const saved = localStorage.getItem('portfolio_categories');
         if (saved) setCategories(JSON.parse(saved));
         setIsLoading(false);
       });
 
     fetch('/api.php?action=getServices')
-      .then(res => res.json())
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        return JSON.parse(text);
+      })
       .then(data => {
         if (data && data.it && data.en) {
           setServicesData(data);
         }
       })
       .catch(err => {
-        console.error("Errore fetch servizi:", err);
+        console.warn("Avviso caricamento servizi:", err.message || err);
         const localS = localStorage.getItem('custom_services');
         if (localS) setServicesData(JSON.parse(localS));
       });

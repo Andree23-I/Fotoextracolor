@@ -2,6 +2,7 @@ import { copyFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { viteApiPlugin } from "./scripts/viteApiPlugin.js";
 
 function createStaticRoutePages() {
   let outputDirectory;
@@ -30,5 +31,5 @@ export default defineConfig({
   build: {
     outDir: "dist",
   },
-  plugins: [react(), createStaticRoutePages()],
+  plugins: [react(), viteApiPlugin(), createStaticRoutePages()],
 });
