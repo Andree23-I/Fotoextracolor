@@ -1,4 +1,5 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 import JSZip from "jszip";
 
@@ -57,17 +58,23 @@ export default function PhotoUploadModal({ isOpen, onClose, language = "it" }) {
 
   const fileInputRef = useRef(null);
 
-  // Lock body scroll when overlay modal is active
-  React.useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
+  // Lock body scroll and handle Escape key when overlay modal is active
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose();
     };
-  }, [isOpen]);
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -216,15 +223,20 @@ export default function PhotoUploadModal({ isOpen, onClose, language = "it" }) {
     }
   };
 
-  return (
-    <div className="photo-modal-backdrop" onClick={onClose}>
+  return createPortal(
+    <div 
+      className="photo-modal-backdrop" 
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="photo-modal-content-wide" onClick={(e) => e.stopPropagation()}>
         <div className="photo-modal-header">
           <div>
             <h2 className="photo-modal-title">{t.title}</h2>
             <p className="photo-modal-subtitle">{t.subtitle}</p>
           </div>
-          <button type="button" className="photo-modal-close" onClick={onClose}>
+          <button type="button" className="photo-modal-close" onClick={onClose} aria-label="Chiudi">
             ✕
           </button>
         </div>
@@ -271,127 +283,130 @@ export default function PhotoUploadModal({ isOpen, onClose, language = "it" }) {
             )}
           </div>
 
-          {/* Riquadro Destro: Form & Caricamento Drag and Drop */}
-          <form onSubmit={handleSubmit} className="modal-right-form-panel">
-            <div className="form-row-2col">
-              {/* Nome Completo */}
-              <div className="form-group">
-                <label className="form-label">{t.name} *</label>
-                <input
-                  type="text"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder={t.namePlaceholder}
-                  className="form-input"
-                  autoComplete="name"
-                />
-              </div>
-
-              {/* Telefono con Menu Prefissi Internazionali */}
-              <div className="form-group">
-                <label className="form-label">{t.phone} *</label>
-                <div className="phone-input-group">
-                  <select
-                    value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
-                    className="country-select"
-                    title="Prefisso Internazionale"
-                  >
-                    {COUNTRY_CODES.map((c, i) => (
-                      <option key={`${c.code}-${i}`} value={c.code}>
-                        {c.flag} {c.code}
-                      </option>
-                    ))}
-                  </select>
+          {/* Riquadro Destro: Form Dati Utente & Dropzone */}
+          <div className="modal-right-form-panel">
+            <form onSubmit={handleSubmit} className="photo-upload-form">
+              <div className="form-row-2col">
+                {/* Nome Completo */}
+                <div className="form-group">
+                  <label className="form-label">{t.name} *</label>
                   <input
-                    type="tel"
+                    type="text"
                     required
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder={t.phonePlaceholder}
-                    className="form-input phone-number-input"
-                    autoComplete="tel"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder={t.namePlaceholder}
+                    className="form-input"
+                    autoComplete="name"
                   />
                 </div>
-              </div>
-            </div>
 
-            <div className="form-row-2col">
-              {/* Email */}
-              <div className="form-group">
-                <label className="form-label">{t.email} *</label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={t.emailPlaceholder}
-                  className="form-input"
-                  autoComplete="email"
-                />
-              </div>
-
-              {/* Note / Istruzioni */}
-              <div className="form-group">
-                <label className="form-label">{t.notes}</label>
-                <input
-                  type="text"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder={t.notesPlaceholder}
-                  className="form-input"
-                  autoComplete="off"
-                />
-              </div>
-            </div>
-
-            {/* Drag & Drop Upload Zone */}
-            <div className="form-group">
-              <label className="form-label">Caricamento Foto *</label>
-              <div
-                className={`dropzone ${isDragOver ? "drag-over" : ""}`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(e) => handleFileSelect(e.target.files)}
-                  style={{ display: "none" }}
-                />
-                <div className="dropzone-compact">
-                  <span className="dropzone-icon">📷</span>
-                  <div>
-                    <p className="dropzone-text">{t.dragText}</p>
-                    <span className="dropzone-sub">{t.dragSub}</span>
+                {/* Telefono con prefisso internazionale */}
+                <div className="form-group">
+                  <label className="form-label">{t.phone} *</label>
+                  <div className="phone-input-group">
+                    <select
+                      value={countryCode}
+                      onChange={(e) => setCountryCode(e.target.value)}
+                      className="form-select phone-prefix-select"
+                      aria-label="Prefisso Internazionale"
+                    >
+                      {COUNTRY_CODES.map((c, i) => (
+                        <option key={`${c.code}-${i}`} value={c.code}>
+                          {c.flag} {c.code}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="tel"
+                      required
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      placeholder={t.phonePlaceholder}
+                      className="form-input phone-number-input"
+                      autoComplete="tel"
+                    />
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Status Alert Message */}
-            {status.text && (
-              <div className={`status-alert ${status.type}`}>
-                {status.text}
+              <div className="form-row-2col">
+                {/* Email */}
+                <div className="form-group">
+                  <label className="form-label">{t.email} *</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder={t.emailPlaceholder}
+                    className="form-input"
+                    autoComplete="email"
+                  />
+                </div>
+
+                {/* Note / Istruzioni */}
+                <div className="form-group">
+                  <label className="form-label">{t.notes}</label>
+                  <input
+                    type="text"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder={t.notesPlaceholder}
+                    className="form-input"
+                    autoComplete="off"
+                  />
+                </div>
               </div>
-            )}
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={uploading}
-              className="submit-photo-btn"
-            >
-              {uploading ? t.sending : t.sendBtn}
-            </button>
-          </form>
+              {/* Drag & Drop Upload Zone */}
+              <div className="form-group">
+                <label className="form-label">Caricamento Foto *</label>
+                <div
+                  className={`dropzone ${isDragOver ? "drag-over" : ""}`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) => handleFileSelect(e.target.files)}
+                    style={{ display: "none" }}
+                  />
+                  <div className="dropzone-compact">
+                    <span className="dropzone-icon">📷</span>
+                    <div>
+                      <p className="dropzone-text">{t.dragText}</p>
+                      <span className="dropzone-sub">{t.dragSub}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Alert Message */}
+              {status.text && (
+                <div className={`status-alert ${status.type}`}>
+                  {status.text}
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={uploading}
+                className="submit-photo-btn"
+              >
+                {uploading ? t.sending : t.sendBtn}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

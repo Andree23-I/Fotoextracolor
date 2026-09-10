@@ -603,7 +603,7 @@ html {
     transform-style: preserve-3d;
     transform-origin: 50% 50%;
     will-change: opacity, transform;
-    animation: routePageEnter 0.25s cubic-bezier(0.2, 0.72, 0.18, 1) both;
+    animation: routePageEnter 0.25s cubic-bezier(0.2, 0.72, 0.18, 1);
 }
 
 @keyframes routePageEnter {
@@ -613,7 +613,7 @@ html {
     }
     100% {
         opacity: 1;
-        transform: perspective(1400px) translate3d(0, 0, 0) rotateY(0deg) scale(1);
+        transform: none;
     }
 }
 
