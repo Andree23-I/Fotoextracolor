@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './AdminPage.css';
 
 export default function AdminPage() {
@@ -19,6 +19,31 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
 
+  // Analytics & Visitor Monitoring State
+  const [analyticsSubTab, setAnalyticsSubTab] = useState('live'); // 'live' | 'history'
+  const [analyticsData, setAnalyticsData] = useState({
+    activeVisitors: [],
+    history: [],
+    stats: {
+      activeCount: 0,
+      totalVisits: 0,
+      todayVisits: 0,
+      avgDurationSeconds: 0,
+      deviceBreakdown: { Desktop: 0, Mobile: 0, Tablet: 0 },
+      topPages: {}
+    }
+  });
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
+  const [analyticsAutoRefresh, setAnalyticsAutoRefresh] = useState(true);
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(5); // in seconds
+  const [lastAnalyticsUpdate, setLastAnalyticsUpdate] = useState(null);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyDateFilter, setHistoryDateFilter] = useState('all'); // 'all' | 'today' | '7days' | '30days'
+  const [historyDeviceFilter, setHistoryDeviceFilter] = useState('all'); // 'all' | 'Desktop' | 'Mobile' | 'Tablet'
+  const [selectedSessionDetail, setSelectedSessionDetail] = useState(null);
+  const [clearingHistory, setClearingHistory] = useState(false);
+
+  // Fetch Config, Portfolio, and Services
   useEffect(() => {
     fetch('/api.php?action=getConfig')
       .then(res => res.json())
@@ -57,10 +82,178 @@ export default function AdminPage() {
         }
       })
       .catch(err => {
+        console.error("Errore fetch servizi:", err);
         const localS = localStorage.getItem('custom_services');
         if (localS) setServicesData(JSON.parse(localS));
       });
   }, []);
+
+  // Fetch Analytics Function with fallback
+  const fetchAnalytics = useCallback(async (isSilent = false) => {
+    if (!isSilent) setIsAnalyticsLoading(true);
+    try {
+      const res = await fetch('/api.php?action=getAnalytics');
+      if (!res.ok) throw new Error('API offline');
+      const data = await res.json();
+      if (data && data.stats) {
+        setAnalyticsData(data);
+        setLastAnalyticsUpdate(new Date());
+      }
+    } catch (err) {
+      // Local fallback for offline/preview mode
+      try {
+        const localActiveRaw = localStorage.getItem('local_analytics_active');
+        const localActive = localActiveRaw ? JSON.parse(localActiveRaw) : {};
+        const localHistRaw = localStorage.getItem('local_analytics_history');
+        const localHist = localHistRaw ? JSON.parse(localHistRaw) : [];
+        
+        const now = Math.floor(Date.now() / 1000);
+        const cleanActive = {};
+        for (const [sid, sess] of Object.entries(localActive)) {
+          if (now - (sess.lastPing || 0) <= 45) {
+            cleanActive[sid] = sess;
+          }
+        }
+
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayTs = Math.floor(todayStart.getTime() / 1000);
+
+        let todayVisits = 0;
+        let totalDuration = 0;
+        const deviceBreakdown = { Desktop: 0, Mobile: 0, Tablet: 0 };
+        const pageCounts = {};
+
+        localHist.forEach(h => {
+          if ((h.startTime || 0) >= todayTs) todayVisits++;
+          totalDuration += (h.durationSeconds || 0);
+          const dev = h.deviceType || 'Desktop';
+          deviceBreakdown[dev] = (deviceBreakdown[dev] || 0) + 1;
+          const landing = h.landingPage || '/';
+          pageCounts[landing] = (pageCounts[landing] || 0) + 1;
+        });
+
+        const avgDuration = localHist.length > 0 ? Math.round(totalDuration / localHist.length) : 0;
+
+        setAnalyticsData({
+          activeVisitors: Object.values(cleanActive),
+          history: localHist,
+          stats: {
+            activeCount: Object.keys(cleanActive).length,
+            totalVisits: localHist.length,
+            todayVisits,
+            avgDurationSeconds: avgDuration,
+            deviceBreakdown,
+            topPages: pageCounts
+          }
+        });
+        setLastAnalyticsUpdate(new Date());
+      } catch (e) {
+        console.warn("Analytics fallback error:", e);
+      }
+    } finally {
+      if (!isSilent) setIsAnalyticsLoading(false);
+    }
+  }, []);
+
+  // Polling for analytics when activeTab is 'analytics' or background heartbeat
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    fetchAnalytics(false);
+
+    if (activeTab === 'analytics' && analyticsAutoRefresh) {
+      const intervalMs = autoRefreshInterval * 1000;
+      const interval = setInterval(() => {
+        fetchAnalytics(true);
+      }, intervalMs);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, activeTab, analyticsAutoRefresh, autoRefreshInterval, fetchAnalytics]);
+
+  // Handle Clearing Analytics History
+  const handleClearHistory = async () => {
+    if (!window.confirm("Sei sicuro di voler cancellare TUTTA la cronologia degli accessi? Questa operazione è irreversibile.")) {
+      return;
+    }
+    setClearingHistory(true);
+    try {
+      await fetch('/api.php?action=clearAnalyticsHistory', { method: 'POST' });
+    } catch(e) {
+      console.warn("Errore reset server, resetto locale:", e);
+    }
+    try {
+      localStorage.setItem('local_analytics_history', JSON.stringify([]));
+    } catch(e) {}
+    
+    await fetchAnalytics(false);
+    setClearingHistory(false);
+    alert("Cronologia accessi azzerata con successo.");
+  };
+
+  // Export History to CSV
+  const handleExportCSV = () => {
+    const list = filteredHistory;
+    if (list.length === 0) {
+      alert("Nessun dato da esportare con i filtri attuali.");
+      return;
+    }
+
+    const headers = [
+      "ID Sessione",
+      "Data e Ora Ingresso",
+      "Indirizzo IP",
+      "Dispositivo",
+      "Sistema Operativo",
+      "Browser",
+      "Risoluzione",
+      "Pagina Iniziale",
+      "Ultima Pagina",
+      "Pagine Totali",
+      "Percorso Pagine",
+      "Durata (Secondi)",
+      "Durata Formattata",
+      "Sorgente (Referrer)",
+      "Lingua",
+      "Tema",
+      "Stato"
+    ];
+
+    const rows = list.map(item => {
+      const dateStr = item.startTime ? new Date(item.startTime * 1000).toLocaleString('it-IT') : 'N/D';
+      const durationFormatted = formatDuration(item.durationSeconds || 0);
+      const pagesPath = (item.pages || [item.landingPage || '/']).join(' -> ');
+      return [
+        `"${item.sessionId || ''}"`,
+        `"${dateStr}"`,
+        `"${item.ip || '127.0.0.1'}"`,
+        `"${item.deviceType || 'Desktop'}"`,
+        `"${item.os || 'N/D'}"`,
+        `"${item.browser || 'N/D'}"`,
+        `"${item.screen || 'N/D'}"`,
+        `"${item.landingPage || '/'}"`,
+        `"${item.lastPage || item.landingPage || '/'}"`,
+        item.pageViews || 1,
+        `"${pagesPath}"`,
+        item.durationSeconds || 0,
+        `"${durationFormatted}"`,
+        `"${item.referrer || 'Diretto'}"`,
+        `"${(item.language || 'it').toUpperCase()}"`,
+        `"${item.theme || 'dark'}"`,
+        `"${item.status === 'online' ? 'Online' : 'Concluso'}"`
+      ];
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `FotoExtracolor_Visite_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handlePageModeChange = async (newMode) => {
     setPageMode(newMode);
@@ -166,7 +359,7 @@ export default function AdminPage() {
     
     try {
       const res = await fetch('/api.php?action=deleteImage', {
-        method: 'POST', // Note: using POST because PHP script reads php://input payload
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
       });
@@ -345,13 +538,106 @@ export default function AdminPage() {
     setCategories(newCategories);
     localStorage.setItem('portfolio_categories', JSON.stringify(newCategories));
     
-    // Invia ordine al server se disponibile
     fetch('/api.php?action=reorderCategories', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order: newCategories })
     }).catch(() => console.log("Ordine salvato in locale"));
   };
+
+  // Helper formatting methods for Analytics
+  const formatDuration = (seconds) => {
+    if (!seconds || seconds <= 0) return '0s';
+    if (seconds < 60) return `${seconds}s`;
+    const mins = Math.floor(seconds / 60);
+    const remSecs = seconds % 60;
+    if (mins < 60) {
+      return remSecs > 0 ? `${mins}m ${remSecs}s` : `${mins}m`;
+    }
+    const hours = Math.floor(mins / 60);
+    const remMins = mins % 60;
+    return `${hours}h ${remMins}m`;
+  };
+
+  const formatTimeAgo = (timestamp) => {
+    if (!timestamp) return 'Sconosciuto';
+    const now = Math.floor(Date.now() / 1000);
+    const diff = Math.max(0, now - timestamp);
+    if (diff < 5) return 'adesso';
+    if (diff < 60) return `${diff}s fa`;
+    const mins = Math.floor(diff / 60);
+    if (mins < 60) return `${mins}m fa`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h fa`;
+    const days = Math.floor(hours / 24);
+    return `${days}gg fa`;
+  };
+
+  const formatDateTime = (timestamp) => {
+    if (!timestamp) return 'N/D';
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleDateString('it-IT', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  };
+
+  const getPageLabel = (path) => {
+    if (!path || path === '/') return '🏠 Home';
+    if (path.startsWith('/chisiamo')) return '👥 Chi Siamo';
+    if (path.startsWith('/servizi')) return '🛠️ Servizi';
+    if (path.startsWith('/portfolio')) return '📷 Portfolio';
+    if (path.startsWith('/admin')) return '⚙️ Admin';
+    return path;
+  };
+
+  const getDeviceIcon = (device) => {
+    if (device === 'Mobile') return '📱';
+    if (device === 'Tablet') return '📲';
+    return '💻';
+  };
+
+  // Filter History Log
+  const filteredHistory = (analyticsData.history || []).filter(item => {
+    // Search query
+    if (historySearch.trim()) {
+      const q = historySearch.toLowerCase();
+      const matchIp = (item.ip || '').toLowerCase().includes(q);
+      const matchPage = (item.landingPage || '').toLowerCase().includes(q) || (item.lastPage || '').toLowerCase().includes(q);
+      const matchDevice = (item.deviceType || '').toLowerCase().includes(q) || (item.browser || '').toLowerCase().includes(q) || (item.os || '').toLowerCase().includes(q);
+      const matchRef = (item.referrer || '').toLowerCase().includes(q);
+      const matchSess = (item.sessionId || '').toLowerCase().includes(q);
+      if (!matchIp && !matchPage && !matchDevice && !matchRef && !matchSess) {
+        return false;
+      }
+    }
+
+    // Device filter
+    if (historyDeviceFilter !== 'all') {
+      if (item.deviceType !== historyDeviceFilter) return false;
+    }
+
+    // Date filter
+    if (historyDateFilter !== 'all') {
+      const now = Math.floor(Date.now() / 1000);
+      const itemTs = item.startTime || 0;
+      if (historyDateFilter === 'today') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (itemTs < Math.floor(today.getTime() / 1000)) return false;
+      } else if (historyDateFilter === '7days') {
+        if (itemTs < now - 7 * 86400) return false;
+      } else if (historyDateFilter === '30days') {
+        if (itemTs < now - 30 * 86400) return false;
+      }
+    }
+
+    return true;
+  });
 
   if (!isAuthenticated) {
     return (
@@ -371,11 +657,19 @@ export default function AdminPage() {
     );
   }
 
+  const activeVisitorsCount = analyticsData.stats?.activeCount || (analyticsData.activeVisitors || []).length;
+
   return (
     <div className="admin-page-container">
       <div className="admin-header">
-        <h1>Pannello di Amministrazione</h1>
-        <p>Gestisci le pagine, le immagini e i servizi del sito web</p>
+        <div className="admin-header-main">
+          <h1>Pannello di Amministrazione</h1>
+          <p>Gestisci le pagine, le immagini, i servizi e monitora i visitatori del sito in tempo reale</p>
+        </div>
+        <div className="admin-header-live-badge">
+          <span className="live-pulse-dot"></span>
+          <span>{activeVisitorsCount} {activeVisitorsCount === 1 ? 'Utente Online' : 'Utenti Online'}</span>
+        </div>
       </div>
 
       {modeFeedback && (
@@ -385,6 +679,15 @@ export default function AdminPage() {
       )}
 
       <div className="admin-tabs">
+        <button 
+          className={`admin-tab ${activeTab === 'analytics' ? 'active' : ''}`}
+          onClick={() => setActiveTab('analytics')}
+        >
+          📊 Monitoraggio & Visitatori
+          {activeVisitorsCount > 0 && (
+            <span className="admin-tab-counter-badge">{activeVisitorsCount}</span>
+          )}
+        </button>
         <button 
           className={`admin-tab ${activeTab === 'settings' ? 'active' : ''}`}
           onClick={() => setActiveTab('settings')}
@@ -406,6 +709,471 @@ export default function AdminPage() {
       </div>
 
       <div className="admin-content">
+        {/* ========================================================================= */}
+        {/* TAB: MONITORAGGIO & VISITATORI (CHI È COLLEGATO + CRONOLOGIA ACCESSI) */}
+        {/* ========================================================================= */}
+        {activeTab === 'analytics' && (
+          <div className="admin-analytics-container">
+            {/* KPI STATS CARDS */}
+            <div className="analytics-kpi-grid">
+              <div className="analytics-kpi-card live-kpi-card">
+                <div className="kpi-top">
+                  <span className="kpi-icon">🟢</span>
+                  <span className="kpi-label">Utenti Online Ora</span>
+                </div>
+                <div className="kpi-value-row">
+                  <span className="kpi-value">{activeVisitorsCount}</span>
+                  <span className="live-beacon-pill">LIVE</span>
+                </div>
+                <p className="kpi-subtext">Sessioni attive negli ultimi 45s</p>
+              </div>
+
+              <div className="analytics-kpi-card">
+                <div className="kpi-top">
+                  <span className="kpi-icon">📅</span>
+                  <span className="kpi-label">Visite Oggi</span>
+                </div>
+                <div className="kpi-value-row">
+                  <span className="kpi-value">{analyticsData.stats?.todayVisits || 0}</span>
+                </div>
+                <p className="kpi-subtext">Registrate dalla mezzanotte</p>
+              </div>
+
+              <div className="analytics-kpi-card">
+                <div className="kpi-top">
+                  <span className="kpi-icon">👥</span>
+                  <span className="kpi-label">Visite Totali</span>
+                </div>
+                <div className="kpi-value-row">
+                  <span className="kpi-value">{analyticsData.stats?.totalVisits || 0}</span>
+                </div>
+                <p className="kpi-subtext">Storico accessi registrati</p>
+              </div>
+
+              <div className="analytics-kpi-card">
+                <div className="kpi-top">
+                  <span className="kpi-icon">⏱️</span>
+                  <span className="kpi-label">Permanenza Media</span>
+                </div>
+                <div className="kpi-value-row">
+                  <span className="kpi-value">{formatDuration(analyticsData.stats?.avgDurationSeconds || 0)}</span>
+                </div>
+                <p className="kpi-subtext">Tempo medio sul sito</p>
+              </div>
+
+              <div className="analytics-kpi-card devices-kpi-card">
+                <div className="kpi-top">
+                  <span className="kpi-icon">📱</span>
+                  <span className="kpi-label">Dispositivi</span>
+                </div>
+                <div className="kpi-devices-chips">
+                  <span title="Desktop">💻 {analyticsData.stats?.deviceBreakdown?.Desktop || 0}</span>
+                  <span title="Mobile">📱 {analyticsData.stats?.deviceBreakdown?.Mobile || 0}</span>
+                  <span title="Tablet">📲 {analyticsData.stats?.deviceBreakdown?.Tablet || 0}</span>
+                </div>
+                <p className="kpi-subtext">Distribuzione hardware</p>
+              </div>
+            </div>
+
+            {/* SUB-TABS NAVIGATION & CONTROLS */}
+            <div className="analytics-controls-bar">
+              <div className="analytics-subtabs">
+                <button
+                  className={`analytics-subtab ${analyticsSubTab === 'live' ? 'active' : ''}`}
+                  onClick={() => setAnalyticsSubTab('live')}
+                >
+                  🟢 Chi è Collegato Ora ({activeVisitorsCount})
+                </button>
+                <button
+                  className={`analytics-subtab ${analyticsSubTab === 'history' ? 'active' : ''}`}
+                  onClick={() => setAnalyticsSubTab('history')}
+                >
+                  📜 Cronologia Accessi ({analyticsData.history?.length || 0})
+                </button>
+              </div>
+
+              <div className="analytics-live-controls">
+                <label className="analytics-toggle-label" title="Aggiornamento automatico in tempo reale">
+                  <input
+                    type="checkbox"
+                    checked={analyticsAutoRefresh}
+                    onChange={(e) => setAnalyticsAutoRefresh(e.target.checked)}
+                  />
+                  <span>Auto-Refresh ({autoRefreshInterval}s)</span>
+                </label>
+
+                <select 
+                  className="analytics-interval-select"
+                  value={autoRefreshInterval}
+                  onChange={(e) => setAutoRefreshInterval(Number(e.target.value))}
+                  disabled={!analyticsAutoRefresh}
+                >
+                  <option value={3}>Ogni 3s</option>
+                  <option value={5}>Ogni 5s</option>
+                  <option value={10}>Ogni 10s</option>
+                  <option value={20}>Ogni 20s</option>
+                </select>
+
+                <button 
+                  className="admin-btn-secondary analytics-refresh-btn"
+                  onClick={() => fetchAnalytics(false)}
+                  disabled={isAnalyticsLoading}
+                  title="Aggiorna dati adesso"
+                >
+                  {isAnalyticsLoading ? '⏳ Caricamento...' : '🔄 Aggiorna'}
+                </button>
+              </div>
+            </div>
+
+            {lastAnalyticsUpdate && (
+              <div className="analytics-last-update">
+                Ultimo controllo: {lastAnalyticsUpdate.toLocaleTimeString('it-IT')}
+              </div>
+            )}
+
+            {/* SUB-VIEW 1: CHI È COLLEGATO ADESSO (LIVE) */}
+            {analyticsSubTab === 'live' && (
+              <div className="analytics-live-section">
+                <div className="admin-section-header">
+                  <h2>Utenti Attualmente Connessi</h2>
+                  <p>Visualizza in tempo reale chi sta visitando il sito, quale pagina sta leggendo e da quale dispositivo.</p>
+                </div>
+
+                {(analyticsData.activeVisitors || []).length === 0 ? (
+                  <div className="analytics-empty-state">
+                    <div className="empty-radar-animation">
+                      <div className="radar-circle circle-1"></div>
+                      <div className="radar-circle circle-2"></div>
+                      <div className="radar-icon">📡</div>
+                    </div>
+                    <h3>Nessun visitatore attualmente collegato</h3>
+                    <p>In attesa di nuovi ingressi... Appena qualcuno aprirà il sito apparirà qui all'istante.</p>
+                  </div>
+                ) : (
+                  <div className="active-visitors-grid">
+                    {(analyticsData.activeVisitors || []).map((visitor, idx) => {
+                      const connectedTime = formatDuration(Math.max(1, Math.floor(Date.now() / 1000) - (visitor.firstSeen || Math.floor(Date.now() / 1000))));
+                      const lastPingTime = formatTimeAgo(visitor.lastPing);
+
+                      return (
+                        <div key={visitor.sessionId || idx} className="visitor-card live-card">
+                          <div className="visitor-card-header">
+                            <div className="visitor-header-left">
+                              <span className="live-status-indicator" title="Online adesso"></span>
+                              <span className="visitor-session-id">#{visitor.sessionId ? visitor.sessionId.slice(-7) : 'Ospite'}</span>
+                            </div>
+                            <span className="visitor-device-badge">
+                              {getDeviceIcon(visitor.deviceType)} {visitor.deviceType}
+                            </span>
+                          </div>
+
+                          <div className="visitor-card-body">
+                            <div className="visitor-info-row">
+                              <span className="visitor-info-label">📍 Indirizzo IP:</span>
+                              <span className="visitor-info-val ip-val">{visitor.ip || '127.0.0.1'}</span>
+                            </div>
+
+                            <div className="visitor-info-row">
+                              <span className="visitor-info-label">🌐 Pagina Attiva:</span>
+                              <span className="visitor-info-val page-badge">
+                                {getPageLabel(visitor.currentPage)}
+                              </span>
+                            </div>
+
+                            <div className="visitor-info-row">
+                              <span className="visitor-info-label">💻 Sistema & Browser:</span>
+                              <span className="visitor-info-val">
+                                {visitor.browser} su {visitor.os}
+                              </span>
+                            </div>
+
+                            <div className="visitor-info-row">
+                              <span className="visitor-info-label">🔗 Provenienza:</span>
+                              <span className="visitor-info-val referrer-val">
+                                {visitor.referrer || 'Accesso Diretto'}
+                              </span>
+                            </div>
+
+                            <div className="visitor-info-row">
+                              <span className="visitor-info-label">⏱️ Connesso da:</span>
+                              <span className="visitor-info-val highlight-time">{connectedTime}</span>
+                            </div>
+
+                            <div className="visitor-info-row">
+                              <span className="visitor-info-label">📡 Ultimo Segnale:</span>
+                              <span className="visitor-info-val">{lastPingTime}</span>
+                            </div>
+
+                            {visitor.pages && visitor.pages.length > 1 && (
+                              <div className="visitor-path-box">
+                                <span className="visitor-path-title">Percorso di navigazione ({visitor.pages.length} pagine):</span>
+                                <div className="visitor-path-flow">
+                                  {visitor.pages.map((p, pIdx) => (
+                                    <span key={pIdx} className="path-tag">
+                                      {getPageLabel(p)} {pIdx < visitor.pages.length - 1 ? '→' : ''}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="visitor-tech-footer">
+                              <span className="tech-tag">📐 {visitor.screen || 'N/D'}</span>
+                              <span className="tech-tag">🌐 {(visitor.language || 'it').toUpperCase()}</span>
+                              <span className="tech-tag">{visitor.theme === 'light' ? '☀️ Chiaro' : '🌙 Scuro'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SUB-VIEW 2: CRONOLOGIA DEGLI ACCESSI (STORICO VISITE) */}
+            {analyticsSubTab === 'history' && (
+              <div className="analytics-history-section">
+                <div className="admin-section-header">
+                  <h2>Cronologia degli Accessi</h2>
+                  <p>Registro storico di tutte le visite effettuate sul sito con durata, pagine visitate e dettagli dispositivo.</p>
+                </div>
+
+                {/* Filters & Actions Header */}
+                <div className="history-filter-bar">
+                  <div className="history-search-wrapper">
+                    <span className="search-icon">🔍</span>
+                    <input
+                      type="text"
+                      placeholder="Cerca per IP, pagina, browser, dispositivo o sorgente..."
+                      value={historySearch}
+                      onChange={(e) => setHistorySearch(e.target.value)}
+                      className="admin-input history-search-input"
+                    />
+                    {historySearch && (
+                      <button className="clear-search-btn" onClick={() => setHistorySearch('')}>✕</button>
+                    )}
+                  </div>
+
+                  <div className="history-dropdowns">
+                    <select
+                      className="admin-input history-filter-select"
+                      value={historyDateFilter}
+                      onChange={(e) => setHistoryDateFilter(e.target.value)}
+                    >
+                      <option value="all">📅 Tutte le date</option>
+                      <option value="today">📅 Solo Oggi</option>
+                      <option value="7days">📅 Ultimi 7 giorni</option>
+                      <option value="30days">📅 Ultimi 30 giorni</option>
+                    </select>
+
+                    <select
+                      className="admin-input history-filter-select"
+                      value={historyDeviceFilter}
+                      onChange={(e) => setHistoryDeviceFilter(e.target.value)}
+                    >
+                      <option value="all">💻 Tutti i dispositivi</option>
+                      <option value="Desktop">💻 Solo Desktop</option>
+                      <option value="Mobile">📱 Solo Smartphone</option>
+                      <option value="Tablet">📲 Solo Tablet</option>
+                    </select>
+                  </div>
+
+                  <div className="history-actions-group">
+                    <button 
+                      className="admin-btn-secondary history-export-btn"
+                      onClick={handleExportCSV}
+                      title="Scarica foglio CSV di tutti i dati filtrati"
+                    >
+                      📥 Esporta CSV
+                    </button>
+                    <button 
+                      className="admin-btn-danger history-clear-btn"
+                      onClick={handleClearHistory}
+                      disabled={clearingHistory || (analyticsData.history || []).length === 0}
+                      title="Cancella tutto lo storico delle visite"
+                    >
+                      🗑️ Svuota
+                    </button>
+                  </div>
+                </div>
+
+                <div className="history-results-counter">
+                  Mostrando <strong>{filteredHistory.length}</strong> di <strong>{(analyticsData.history || []).length}</strong> accessi registrati
+                </div>
+
+                {filteredHistory.length === 0 ? (
+                  <div className="analytics-empty-state">
+                    <p className="admin-empty">Nessuna visita trovata corrispondente ai filtri selezionati.</p>
+                  </div>
+                ) : (
+                  <div className="history-table-wrapper">
+                    <table className="admin-history-table">
+                      <thead>
+                        <tr>
+                          <th>Data e Ora</th>
+                          <th>IP & Posizione</th>
+                          <th>Dispositivo & OS</th>
+                          <th>Pagina Iniziale</th>
+                          <th>Pagine Viste</th>
+                          <th>Sorgente</th>
+                          <th>Permanenza</th>
+                          <th>Stato</th>
+                          <th>Dettagli</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredHistory.map((item, idx) => {
+                          const isOnline = item.status === 'online';
+                          const isRecent = isOnline || (Math.floor(Date.now() / 1000) - (item.endTime || 0) < 60);
+
+                          return (
+                            <tr key={item.sessionId || idx} className={isRecent ? 'row-recent' : ''}>
+                              <td className="table-date-cell">
+                                <span className="date-main">{formatDateTime(item.startTime)}</span>
+                                <span className="date-ago">{formatTimeAgo(item.startTime)}</span>
+                              </td>
+                              <td className="table-ip-cell">
+                                <span className="ip-badge">{item.ip || '127.0.0.1'}</span>
+                              </td>
+                              <td className="table-device-cell">
+                                <span className="device-tag">
+                                  {getDeviceIcon(item.deviceType)} {item.deviceType}
+                                </span>
+                                <span className="browser-sub">{item.browser} • {item.os}</span>
+                              </td>
+                              <td className="table-page-cell">
+                                <span className="page-tag-pill">{getPageLabel(item.landingPage)}</span>
+                              </td>
+                              <td className="table-views-cell">
+                                <span className="views-count-badge" title={(item.pages || []).join(' → ')}>
+                                  {item.pageViews || 1} {item.pageViews === 1 ? 'pag.' : 'pag.'}
+                                </span>
+                              </td>
+                              <td className="table-referrer-cell">
+                                <span className="referrer-tag">{item.referrer || 'Diretto'}</span>
+                              </td>
+                              <td className="table-duration-cell">
+                                <span className="duration-pill">{formatDuration(item.durationSeconds || 0)}</span>
+                              </td>
+                              <td className="table-status-cell">
+                                {isOnline ? (
+                                  <span className="status-badge-online">● Online</span>
+                                ) : (
+                                  <span className="status-badge-ended">Concluso</span>
+                                )}
+                              </td>
+                              <td className="table-action-cell">
+                                <button
+                                  className="admin-btn-secondary btn-inspect"
+                                  onClick={() => setSelectedSessionDetail(item)}
+                                  title="Visualizza dettagli completi della sessione"
+                                >
+                                  🔎
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* DETAIL MODAL FOR INSPECTING A SINGLE VISIT SESSION */}
+            {selectedSessionDetail && (
+              <div className="admin-modal-backdrop" onClick={() => setSelectedSessionDetail(null)}>
+                <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
+                  <div className="admin-modal-header">
+                    <h3>Dettaglio Accesso Visitatore</h3>
+                    <button className="admin-modal-close" onClick={() => setSelectedSessionDetail(null)}>✕</button>
+                  </div>
+                  
+                  <div className="admin-modal-body">
+                    <div className="detail-hero-box">
+                      <div className="detail-status-row">
+                        <span className={`detail-status-pill ${selectedSessionDetail.status === 'online' ? 'online' : 'ended'}`}>
+                          {selectedSessionDetail.status === 'online' ? '● ATTUALMENTE ONLINE' : 'SESSIONE CONCLUSA'}
+                        </span>
+                        <span className="detail-sess-id">ID: {selectedSessionDetail.sessionId}</span>
+                      </div>
+                    </div>
+
+                    <div className="detail-grid">
+                      <div className="detail-item">
+                        <label>🗓️ Data & Ora Inizio:</label>
+                        <span>{formatDateTime(selectedSessionDetail.startTime)}</span>
+                      </div>
+                      <div className="detail-item">
+                        <label>⏱️ Durata Permanenza:</label>
+                        <span className="highlight-text">{formatDuration(selectedSessionDetail.durationSeconds || 0)}</span>
+                      </div>
+                      <div className="detail-item">
+                        <label>📍 Indirizzo IP:</label>
+                        <span>{selectedSessionDetail.ip || '127.0.0.1'}</span>
+                      </div>
+                      <div className="detail-item">
+                        <label>🔗 Fonte / Referrer:</label>
+                        <span>{selectedSessionDetail.referrer || 'Accesso Diretto'}</span>
+                      </div>
+                      <div className="detail-item">
+                        <label>📱 Tipo Dispositivo:</label>
+                        <span>{getDeviceIcon(selectedSessionDetail.deviceType)} {selectedSessionDetail.deviceType}</span>
+                      </div>
+                      <div className="detail-item">
+                        <label>💻 Sistema Operativo:</label>
+                        <span>{selectedSessionDetail.os}</span>
+                      </div>
+                      <div className="detail-item">
+                        <label>🌐 Browser:</label>
+                        <span>{selectedSessionDetail.browser}</span>
+                      </div>
+                      <div className="detail-item">
+                        <label>📐 Risoluzione Schermo:</label>
+                        <span>{selectedSessionDetail.screen || 'N/D'}</span>
+                      </div>
+                      <div className="detail-item">
+                        <label>🇮🇹 Lingua Selezionata:</label>
+                        <span>{(selectedSessionDetail.language || 'it').toUpperCase()}</span>
+                      </div>
+                      <div className="detail-item">
+                        <label>🎨 Tema:</label>
+                        <span>{selectedSessionDetail.theme === 'light' ? '☀️ Chiaro' : '🌙 Scuro'}</span>
+                      </div>
+                    </div>
+
+                    <div className="detail-timeline-box">
+                      <h4>Percorso Pagine Visitate ({selectedSessionDetail.pageViews || 1})</h4>
+                      <div className="detail-timeline">
+                        {(selectedSessionDetail.pages || [selectedSessionDetail.landingPage || '/']).map((page, pIdx) => (
+                          <div key={pIdx} className="timeline-step">
+                            <div className="timeline-dot">{pIdx + 1}</div>
+                            <div className="timeline-content">
+                              <span className="timeline-page-name">{getPageLabel(page)}</span>
+                              <span className="timeline-page-raw">{page}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="admin-modal-footer">
+                    <button className="admin-btn-secondary" onClick={() => setSelectedSessionDetail(null)}>
+                      Chiudi
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB: SCELTA PAGINA PRINCIPALE (CHI SIAMO / PORTFOLIO) */}
+        {/* ========================================================================= */}
         {activeTab === 'settings' && (
           <div className="admin-section admin-settings-section">
             <div className="admin-section-header">
@@ -487,6 +1255,9 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ========================================================================= */}
+        {/* TAB: GESTIONE GALLERIA / PORTFOLIO */}
+        {/* ========================================================================= */}
         {activeTab === 'portfolio' && activeCategory && (
           <div className="admin-section">
             <button className="admin-btn-secondary" onClick={() => setActiveCategory(null)}>
@@ -577,6 +1348,9 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ========================================================================= */}
+        {/* TAB: GESTIONE SERVIZI */}
+        {/* ========================================================================= */}
         {activeTab === 'services' && (
           <div className="admin-section">
             <div className="admin-services-header">
