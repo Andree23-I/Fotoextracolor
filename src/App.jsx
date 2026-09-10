@@ -14,6 +14,7 @@ import logo from "./assets/logo.jpeg";
 import heroPhoto from "./assets/scuro.jpeg";
 import lightHeroPhoto from "./assets/chiaro.jpeg";
 import atelierPhoto from "./assets/hero_background.jpg";
+import { useVisitorTracker } from "./utils/visitorTracker.js";
 
 // Lazy-load admin route to prevent loading admin bundle in memory for regular visitors
 const AdminPage = lazy(() => import("./components/AdminPage.jsx"));
@@ -2325,6 +2326,11 @@ function ChiSiamo({ content, language }) {
   );
 }
 
+function AnalyticsTracker({ language, theme }) {
+  useVisitorTracker(language, theme);
+  return null;
+}
+
 function App() {
   const [language, setLanguage] = useState(() => {
     if (typeof window === "undefined") return "it";
@@ -2383,6 +2389,7 @@ function App() {
 
   return (
     <Router basename={import.meta.env.BASE_URL}>
+      <AnalyticsTracker language={language} theme={theme} />
       <div className="app-container taskbar-style">
         <TopHeaderBar
           language={language}
@@ -2411,3 +2418,4 @@ function App() {
 }
 
 export default App;
+

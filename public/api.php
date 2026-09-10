@@ -207,6 +207,272 @@ switch ($action) {
         }
         break;
 
+    case 'trackPing':
+        $rawInput = file_get_contents('php://input');
+        $data = json_decode($rawInput, true) ?: [];
+        $sessionId = isset($data['sessionId']) ? trim($data['sessionId']) : '';
+        
+        if (empty($sessionId)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Session ID mancante"]);
+            exit;
+        }
+
+        $activeFile = __DIR__ . '/uploads/analytics_active.json';
+        $historyFile = __DIR__ . '/uploads/analytics_history.json';
+        $now = time();
+
+        // Helper to get client IP
+        $ip = '127.0.0.1';
+        if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+            $ip = $_SERVER['HTTP_CF_CONNECTING_IP'];
+        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $parts = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+            $ip = trim($parts[0]);
+        } elseif (!empty($_SERVER['REMOTE_ADDR'])) {
+            $ip = $_SERVER['REMOTE_ADDR'];
+        }
+
+        $activeSessions = file_exists($activeFile) ? (json_decode(file_get_contents($activeFile), true) ?: []) : [];
+        $history = file_exists($historyFile) ? (json_decode(file_get_contents($historyFile), true) ?: []) : [];
+
+        // 1. Clean up stale active sessions (> 45s without ping)
+        $updatedActive = [];
+        foreach ($activeSessions as $sid => $sess) {
+            if ($now - ($sess['lastPing'] ?? 0) > 45) {
+                // Mark as ended in history
+                foreach ($history as &$hItem) {
+                    if ($hItem['sessionId'] === $sid && ($hItem['status'] ?? '') === 'online') {
+                        $hItem['status'] = 'ended';
+                        $hItem['endTime'] = $sess['lastPing'];
+                        $hItem['durationSeconds'] = max(1, $sess['lastPing'] - $sess['firstSeen']);
+                        break;
+                    }
+                }
+            } else {
+                $updatedActive[$sid] = $sess;
+            }
+        }
+
+        // 2. Update or insert current session
+        $page = isset($data['page']) ? $data['page'] : '/';
+        $referrer = isset($data['referrer']) && !empty($data['referrer']) ? $data['referrer'] : 'Diretto';
+        $deviceType = isset($data['deviceType']) ? $data['deviceType'] : 'Desktop';
+        $os = isset($data['os']) ? $data['os'] : 'Unknown OS';
+        $browser = isset($data['browser']) ? $data['browser'] : 'Unknown Browser';
+        $screen = isset($data['screen']) ? $data['screen'] : '';
+        $language = isset($data['language']) ? $data['language'] : 'it';
+        $theme = isset($data['theme']) ? $data['theme'] : 'dark';
+        $visitorId = isset($data['visitorId']) ? $data['visitorId'] : $sessionId;
+
+        if (isset($updatedActive[$sessionId])) {
+            $existing = $updatedActive[$sessionId];
+            $pages = $existing['pages'] ?? [];
+            if (empty($pages) || end($pages) !== $page) {
+                $pages[] = $page;
+            }
+            $updatedActive[$sessionId] = array_merge($existing, [
+                'currentPage' => $page,
+                'lastPing' => $now,
+                'pageViews' => count($pages),
+                'pages' => $pages,
+                'theme' => $theme,
+                'language' => $language
+            ]);
+        } else {
+            $updatedActive[$sessionId] = [
+                'sessionId' => $sessionId,
+                'visitorId' => $visitorId,
+                'ip' => $ip,
+                'deviceType' => $deviceType,
+                'os' => $os,
+                'browser' => $browser,
+                'screen' => $screen,
+                'currentPage' => $page,
+                'referrer' => $referrer,
+                'language' => $language,
+                'theme' => $theme,
+                'firstSeen' => $now,
+                'lastPing' => $now,
+                'pageViews' => 1,
+                'pages' => [$page]
+            ];
+        }
+
+        // 3. Update or insert in history log
+        $foundInHistory = false;
+        foreach ($history as &$hItem) {
+            if ($hItem['sessionId'] === $sessionId) {
+                $foundInHistory = true;
+                $hPages = $hItem['pages'] ?? [];
+                if (empty($hPages) || end($hPages) !== $page) {
+                    $hPages[] = $page;
+                }
+                $hItem['lastPage'] = $page;
+                $hItem['pageViews'] = count($hPages);
+                $hItem['pages'] = $hPages;
+                $hItem['endTime'] = $now;
+                $hItem['durationSeconds'] = max(1, $now - $hItem['startTime']);
+                $hItem['status'] = 'online';
+                $hItem['theme'] = $theme;
+                $hItem['language'] = $language;
+                break;
+            }
+        }
+
+        if (!$foundInHistory) {
+            $newHistoryItem = [
+                'sessionId' => $sessionId,
+                'visitorId' => $visitorId,
+                'ip' => $ip,
+                'deviceType' => $deviceType,
+                'os' => $os,
+                'browser' => $browser,
+                'screen' => $screen,
+                'landingPage' => $page,
+                'lastPage' => $page,
+                'pageViews' => 1,
+                'pages' => [$page],
+                'referrer' => $referrer,
+                'language' => $language,
+                'theme' => $theme,
+                'startTime' => $now,
+                'endTime' => $now,
+                'durationSeconds' => 1,
+                'status' => 'online'
+            ];
+            array_unshift($history, $newHistoryItem);
+            if (count($history) > 1500) {
+                $history = array_slice($history, 0, 1500);
+            }
+        }
+
+        file_put_contents($activeFile, json_encode($updatedActive, JSON_PRETTY_PRINT));
+        file_put_contents($historyFile, json_encode($history, JSON_PRETTY_PRINT));
+
+        echo json_encode([
+            "success" => true,
+            "activeCount" => count($updatedActive)
+        ]);
+        break;
+
+    case 'trackLeave':
+        $rawInput = file_get_contents('php://input');
+        $data = json_decode($rawInput, true) ?: [];
+        $sessionId = isset($data['sessionId']) ? trim($data['sessionId']) : '';
+
+        if (!empty($sessionId)) {
+            $activeFile = __DIR__ . '/uploads/analytics_active.json';
+            $historyFile = __DIR__ . '/uploads/analytics_history.json';
+            $now = time();
+
+            if (file_exists($activeFile)) {
+                $activeSessions = json_decode(file_get_contents($activeFile), true) ?: [];
+                if (isset($activeSessions[$sessionId])) {
+                    unset($activeSessions[$sessionId]);
+                    file_put_contents($activeFile, json_encode($activeSessions, JSON_PRETTY_PRINT));
+
+                    if (file_exists($historyFile)) {
+                        $history = json_decode(file_get_contents($historyFile), true) ?: [];
+                        foreach ($history as &$hItem) {
+                            if ($hItem['sessionId'] === $sessionId) {
+                                $hItem['status'] = 'ended';
+                                $hItem['endTime'] = $now;
+                                $hItem['durationSeconds'] = max(1, $now - $hItem['startTime']);
+                                break;
+                            }
+                        }
+                        file_put_contents($historyFile, json_encode($history, JSON_PRETTY_PRINT));
+                    }
+                }
+            }
+        }
+        echo json_encode(["success" => true]);
+        break;
+
+    case 'getAnalytics':
+        $activeFile = __DIR__ . '/uploads/analytics_active.json';
+        $historyFile = __DIR__ . '/uploads/analytics_history.json';
+        $now = time();
+
+        $activeSessions = file_exists($activeFile) ? (json_decode(file_get_contents($activeFile), true) ?: []) : [];
+        $history = file_exists($historyFile) ? (json_decode(file_get_contents($historyFile), true) ?: []) : [];
+
+        // Clean stale sessions (> 45s without ping)
+        $cleanActive = [];
+        $historyModified = false;
+        foreach ($activeSessions as $sid => $sess) {
+            if ($now - ($sess['lastPing'] ?? 0) > 45) {
+                foreach ($history as &$hItem) {
+                    if ($hItem['sessionId'] === $sid && ($hItem['status'] ?? '') === 'online') {
+                        $hItem['status'] = 'ended';
+                        $hItem['endTime'] = $sess['lastPing'];
+                        $hItem['durationSeconds'] = max(1, $sess['lastPing'] - $sess['firstSeen']);
+                        $historyModified = true;
+                        break;
+                    }
+                }
+            } else {
+                $cleanActive[$sid] = $sess;
+            }
+        }
+
+        if (count($cleanActive) !== count($activeSessions)) {
+            file_put_contents($activeFile, json_encode($cleanActive, JSON_PRETTY_PRINT));
+        }
+        if ($historyModified) {
+            file_put_contents($historyFile, json_encode($history, JSON_PRETTY_PRINT));
+        }
+
+        // Calculate aggregated statistics
+        $todayStart = strtotime('today midnight');
+        $totalVisits = count($history);
+        $todayVisits = 0;
+        $totalDuration = 0;
+        $deviceBreakdown = ['Desktop' => 0, 'Mobile' => 0, 'Tablet' => 0];
+        $pageCounts = [];
+
+        foreach ($history as $h) {
+            if (($h['startTime'] ?? 0) >= $todayStart) {
+                $todayVisits++;
+            }
+            $totalDuration += ($h['durationSeconds'] ?? 0);
+            
+            $dev = $h['deviceType'] ?? 'Desktop';
+            if (isset($deviceBreakdown[$dev])) {
+                $deviceBreakdown[$dev]++;
+            } else {
+                $deviceBreakdown['Desktop']++;
+            }
+
+            $landing = $h['landingPage'] ?? '/';
+            $pageCounts[$landing] = ($pageCounts[$landing] ?? 0) + 1;
+        }
+
+        arsort($pageCounts);
+
+        $avgDuration = $totalVisits > 0 ? round($totalDuration / $totalVisits) : 0;
+
+        echo json_encode([
+            "activeVisitors" => array_values($cleanActive),
+            "history" => $history,
+            "stats" => [
+                "activeCount" => count($cleanActive),
+                "totalVisits" => $totalVisits,
+                "todayVisits" => $todayVisits,
+                "avgDurationSeconds" => $avgDuration,
+                "deviceBreakdown" => $deviceBreakdown,
+                "topPages" => $pageCounts
+            ]
+        ]);
+        break;
+
+    case 'clearAnalyticsHistory':
+        $historyFile = __DIR__ . '/uploads/analytics_history.json';
+        file_put_contents($historyFile, json_encode([], JSON_PRETTY_PRINT));
+        echo json_encode(["success" => true, "message" => "Cronologia azzerata con successo"]);
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(["error" => "Azione non valida"]);

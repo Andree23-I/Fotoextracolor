@@ -131,6 +131,8 @@ app.delete('/api/portfolio/image', (req, res) => {
 
 // 6. GET & POST config (Gestione pagina attiva: Chi Siamo / Portfolio)
 const CONFIG_FILE = path.join(__dirname, 'uploads', 'config.json');
+const ACTIVE_FILE = path.join(__dirname, 'uploads', 'analytics_active.json');
+const HISTORY_FILE = path.join(__dirname, 'uploads', 'analytics_history.json');
 
 app.get('/api/config', (req, res) => {
   if (fs.existsSync(CONFIG_FILE)) {
@@ -144,6 +146,254 @@ app.post('/api/config', (req, res) => {
   const config = req.body.config || req.body;
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
   res.json({ success: true });
+});
+
+// Analytics Helper functions
+const getClientIp = (req) => {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) return forwarded.split(',')[0].trim();
+  return req.socket.remoteAddress || '127.0.0.1';
+};
+
+const handleAnalyticsPing = (req, res) => {
+  const data = req.body || {};
+  const sessionId = data.sessionId ? String(data.sessionId).trim() : '';
+  if (!sessionId) return res.status(400).json({ error: 'Session ID mancante' });
+
+  const now = Math.floor(Date.now() / 1000);
+  const ip = getClientIp(req);
+
+  let activeSessions = {};
+  let history = [];
+  if (fs.existsSync(ACTIVE_FILE)) {
+    try { activeSessions = JSON.parse(fs.readFileSync(ACTIVE_FILE, 'utf8')) || {}; } catch(e) {}
+  }
+  if (fs.existsSync(HISTORY_FILE)) {
+    try { history = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8')) || []; } catch(e) {}
+  }
+
+  // Cleanup stale active sessions
+  const updatedActive = {};
+  for (const [sid, sess] of Object.entries(activeSessions)) {
+    if (now - (sess.lastPing || 0) > 45) {
+      const hItem = history.find(h => h.sessionId === sid && h.status === 'online');
+      if (hItem) {
+        hItem.status = 'ended';
+        hItem.endTime = sess.lastPing;
+        hItem.durationSeconds = Math.max(1, sess.lastPing - sess.firstSeen);
+      }
+    } else {
+      updatedActive[sid] = sess;
+    }
+  }
+
+  const page = data.page || '/';
+  const referrer = data.referrer || 'Diretto';
+  const deviceType = data.deviceType || 'Desktop';
+  const os = data.os || 'Unknown OS';
+  const browser = data.browser || 'Unknown Browser';
+  const screen = data.screen || '';
+  const language = data.language || 'it';
+  const theme = data.theme || 'dark';
+  const visitorId = data.visitorId || sessionId;
+
+  if (updatedActive[sessionId]) {
+    const existing = updatedActive[sessionId];
+    const pages = existing.pages || [];
+    if (pages.length === 0 || pages[pages.length - 1] !== page) {
+      pages.push(page);
+    }
+    updatedActive[sessionId] = {
+      ...existing,
+      currentPage: page,
+      lastPing: now,
+      pageViews: pages.length,
+      pages,
+      theme,
+      language
+    };
+  } else {
+    updatedActive[sessionId] = {
+      sessionId,
+      visitorId,
+      ip,
+      deviceType,
+      os,
+      browser,
+      screen,
+      currentPage: page,
+      referrer,
+      language,
+      theme,
+      firstSeen: now,
+      lastPing: now,
+      pageViews: 1,
+      pages: [page]
+    };
+  }
+
+  const foundHistory = history.find(h => h.sessionId === sessionId);
+  if (foundHistory) {
+    const hPages = foundHistory.pages || [];
+    if (hPages.length === 0 || hPages[hPages.length - 1] !== page) {
+      hPages.push(page);
+    }
+    foundHistory.lastPage = page;
+    foundHistory.pageViews = hPages.length;
+    foundHistory.pages = hPages;
+    foundHistory.endTime = now;
+    foundHistory.durationSeconds = Math.max(1, now - foundHistory.startTime);
+    foundHistory.status = 'online';
+    foundHistory.theme = theme;
+    foundHistory.language = language;
+  } else {
+    history.unshift({
+      sessionId,
+      visitorId,
+      ip,
+      deviceType,
+      os,
+      browser,
+      screen,
+      landingPage: page,
+      lastPage: page,
+      pageViews: 1,
+      pages: [page],
+      referrer,
+      language,
+      theme,
+      startTime: now,
+      endTime: now,
+      durationSeconds: 1,
+      status: 'online'
+    });
+    if (history.length > 1500) history = history.slice(0, 1500);
+  }
+
+  fs.writeFileSync(ACTIVE_FILE, JSON.stringify(updatedActive, null, 2));
+  fs.writeFileSync(HISTORY_FILE, JSON.stringify(history, null, 2));
+
+  res.json({ success: true, activeCount: Object.keys(updatedActive).length });
+};
+
+const handleAnalyticsLeave = (req, res) => {
+  const sessionId = req.body?.sessionId;
+  if (sessionId && fs.existsSync(ACTIVE_FILE)) {
+    try {
+      const activeSessions = JSON.parse(fs.readFileSync(ACTIVE_FILE, 'utf8')) || {};
+      if (activeSessions[sessionId]) {
+        delete activeSessions[sessionId];
+        fs.writeFileSync(ACTIVE_FILE, JSON.stringify(activeSessions, null, 2));
+      }
+      if (fs.existsSync(HISTORY_FILE)) {
+        const history = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8')) || [];
+        const now = Math.floor(Date.now() / 1000);
+        const item = history.find(h => h.sessionId === sessionId);
+        if (item) {
+          item.status = 'ended';
+          item.endTime = now;
+          item.durationSeconds = Math.max(1, now - item.startTime);
+          fs.writeFileSync(HISTORY_FILE, JSON.stringify(history, null, 2));
+        }
+      }
+    } catch(e) {}
+  }
+  res.json({ success: true });
+};
+
+const handleGetAnalytics = (req, res) => {
+  let activeSessions = {};
+  let history = [];
+  if (fs.existsSync(ACTIVE_FILE)) {
+    try { activeSessions = JSON.parse(fs.readFileSync(ACTIVE_FILE, 'utf8')) || {}; } catch(e) {}
+  }
+  if (fs.existsSync(HISTORY_FILE)) {
+    try { history = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8')) || []; } catch(e) {}
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const cleanActive = {};
+  let historyModified = false;
+  for (const [sid, sess] of Object.entries(activeSessions)) {
+    if (now - (sess.lastPing || 0) > 45) {
+      const hItem = history.find(h => h.sessionId === sid && h.status === 'online');
+      if (hItem) {
+        hItem.status = 'ended';
+        hItem.endTime = sess.lastPing;
+        hItem.durationSeconds = Math.max(1, sess.lastPing - sess.firstSeen);
+        historyModified = true;
+      }
+    } else {
+      cleanActive[sid] = sess;
+    }
+  }
+
+  if (Object.keys(cleanActive).length !== Object.keys(activeSessions).length) {
+    fs.writeFileSync(ACTIVE_FILE, JSON.stringify(cleanActive, null, 2));
+  }
+  if (historyModified) {
+    fs.writeFileSync(HISTORY_FILE, JSON.stringify(history, null, 2));
+  }
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayTimestamp = Math.floor(todayStart.getTime() / 1000);
+
+  const totalVisits = history.length;
+  let todayVisits = 0;
+  let totalDuration = 0;
+  const deviceBreakdown = { Desktop: 0, Mobile: 0, Tablet: 0 };
+  const pageCounts = {};
+
+  history.forEach(h => {
+    if ((h.startTime || 0) >= todayTimestamp) todayVisits++;
+    totalDuration += (h.durationSeconds || 0);
+    const dev = h.deviceType || 'Desktop';
+    deviceBreakdown[dev] = (deviceBreakdown[dev] || 0) + 1;
+    const landing = h.landingPage || '/';
+    pageCounts[landing] = (pageCounts[landing] || 0) + 1;
+  });
+
+  const avgDuration = totalVisits > 0 ? Math.round(totalDuration / totalVisits) : 0;
+
+  res.json({
+    activeVisitors: Object.values(cleanActive),
+    history,
+    stats: {
+      activeCount: Object.keys(cleanActive).length,
+      totalVisits,
+      todayVisits,
+      avgDurationSeconds: avgDuration,
+      deviceBreakdown,
+      topPages: pageCounts
+    }
+  });
+};
+
+const handleClearHistory = (req, res) => {
+  fs.writeFileSync(HISTORY_FILE, JSON.stringify([], null, 2));
+  res.json({ success: true, message: 'Cronologia azzerata con successo' });
+};
+
+// Unified /api.php route support for local Node server
+app.all('/api.php', (req, res) => {
+  const action = req.query.action || '';
+  if (action === 'trackPing') return handleAnalyticsPing(req, res);
+  if (action === 'trackLeave') return handleAnalyticsLeave(req, res);
+  if (action === 'getAnalytics') return handleGetAnalytics(req, res);
+  if (action === 'clearAnalyticsHistory') return handleClearHistory(req, res);
+  if (action === 'getConfig') {
+    if (fs.existsSync(CONFIG_FILE)) {
+      return res.json(JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')));
+    }
+    return res.json({ pageMode: 'chisiamo' });
+  }
+  if (action === 'saveConfig') {
+    const config = req.body?.config || req.body;
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+    return res.json({ success: true });
+  }
+  res.status(404).json({ error: 'Azione non supportata su Node server' });
 });
 
 const PORT = process.env.PORT || 3001;
