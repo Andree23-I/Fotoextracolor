@@ -550,7 +550,7 @@ Regole per te:
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($groqPayload));
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/json',
-            'Authorization: Bearer INSERISCI_QUI_LA_TUA_CHIAVE'
+            'Authorization: Bearer ' . (getenv('GROQ_API_KEY') ?: 'YOUR_GROQ_API_KEY')
         ]);
 
         $response = curl_exec($ch);
