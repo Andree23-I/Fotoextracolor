@@ -378,6 +378,13 @@ const handleClearHistory = (req, res) => {
 // Unified /api.php route support for local Node server
 app.all('/api.php', (req, res) => {
   const action = req.query.action || '';
+  if (action === 'verifyPassword') {
+    const pwd = req.body?.password || '';
+    if (pwd === 'fotoextracolor@100') {
+      return res.json({ success: true });
+    }
+    return res.status(401).json({ success: false, error: 'Password errata' });
+  }
   if (action === 'trackPing') return handleAnalyticsPing(req, res);
   if (action === 'trackLeave') return handleAnalyticsLeave(req, res);
   if (action === 'getAnalytics') return handleGetAnalytics(req, res);

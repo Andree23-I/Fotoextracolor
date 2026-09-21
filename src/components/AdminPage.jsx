@@ -493,12 +493,23 @@ export default function AdminPage() {
     }
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (password === 'fotoextracolor@100') {
-      setIsAuthenticated(true);
-    } else {
-      alert("Password errata!");
+    try {
+      const res = await fetch('/api.php?action=verifyPassword', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setIsAuthenticated(true);
+      } else {
+        alert("Password errata!");
+      }
+    } catch (err) {
+      alert("Errore di connessione al server per la verifica della password.");
     }
   };
 
