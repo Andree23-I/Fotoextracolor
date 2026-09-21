@@ -44,6 +44,10 @@ export default function AdminPage() {
   const [selectedSessionDetail, setSelectedSessionDetail] = useState(null);
   const [clearingHistory, setClearingHistory] = useState(false);
 
+  // Chat State
+  const [chatsData, setChatsData] = useState([]);
+  const [isChatsLoading, setIsChatsLoading] = useState(false);
+
   // Lock body scroll and listen for Escape key when session detail modal is open
   useEffect(() => {
     if (!selectedSessionDetail) return;
@@ -295,6 +299,26 @@ export default function AdminPage() {
       console.warn("Salvato in locale:", err);
     }
   };
+
+  const fetchChats = useCallback(async () => {
+    setIsChatsLoading(true);
+    try {
+      const res = await fetch('/api.php?action=getChats');
+      const data = await res.json();
+      if (data && data.success) {
+        setChatsData(data.chats || []);
+      }
+    } catch (err) {
+      console.error("Errore fetch chat", err);
+    }
+    setIsChatsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'chats') {
+      fetchChats();
+    }
+  }, [activeTab, fetchChats]);
 
   const [newCategory, setNewCategory] = useState('');
 
@@ -719,6 +743,12 @@ export default function AdminPage() {
           )}
         </button>
         <button 
+          className={`admin-tab ${activeTab === 'chats' ? 'active' : ''}`}
+          onClick={() => setActiveTab('chats')}
+        >
+          💬 Chat dal Vivo
+        </button>
+        <button 
           className={`admin-tab ${activeTab === 'settings' ? 'active' : ''}`}
           onClick={() => setActiveTab('settings')}
         >
@@ -739,6 +769,59 @@ export default function AdminPage() {
       </div>
 
       <div className="admin-content">
+        {/* ========================================================================= */}
+        {/* TAB: CHAT DAL VIVO */}
+        {/* ========================================================================= */}
+        {activeTab === 'chats' && (
+          <div className="admin-section animate-fade-in">
+            <h2>Storico Chatbot</h2>
+            <div className="admin-card">
+              <div className="admin-card-header">
+                <h3>Conversazioni Registrate</h3>
+                <button className="admin-btn-secondary" onClick={fetchChats} disabled={isChatsLoading}>
+                  {isChatsLoading ? 'Aggiornamento...' : '🔄 Aggiorna'}
+                </button>
+              </div>
+              <div className="admin-card-body">
+                {chatsData.length === 0 ? (
+                  <div className="empty-state">
+                    <p>Nessuna chat registrata finora.</p>
+                  </div>
+                ) : (
+                  <div className="chats-list">
+                    {chatsData.map(chat => (
+                      <div key={chat.sessionId} className="chat-session-card" style={{ border: '1px solid #eaeaea', borderRadius: '8px', padding: '15px', marginBottom: '15px' }}>
+                        <div className="chat-session-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', borderBottom: '1px solid #eaeaea', paddingBottom: '10px' }}>
+                          <strong style={{ fontSize: '1.1rem', color: 'var(--primary)' }}>👤 Utente: {chat.userName}</strong>
+                          <span style={{ fontSize: '0.85rem', color: '#666' }}>Iniziata: {new Date(chat.startTime).toLocaleString('it-IT')}</span>
+                        </div>
+                        <div className="chat-messages-container" style={{ background: '#f9f9f9', padding: '10px', borderRadius: '6px', maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {chat.messages && chat.messages.map((msg, i) => (
+                            <div key={i} style={{ 
+                              alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
+                              background: msg.sender === 'user' ? 'var(--primary)' : '#e0e0e0',
+                              color: msg.sender === 'user' ? '#fff' : '#333',
+                              padding: '8px 12px',
+                              borderRadius: '12px',
+                              maxWidth: '80%',
+                              fontSize: '0.9rem'
+                            }}>
+                              {msg.text}
+                              <div style={{ fontSize: '0.65rem', marginTop: '4px', opacity: 0.7, textAlign: msg.sender === 'user' ? 'right' : 'left' }}>
+                                {new Date(msg.timestamp).toLocaleTimeString('it-IT')}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ========================================================================= */}
         {/* TAB: MONITORAGGIO & VISITATORI (CHI È COLLEGATO + CRONOLOGIA ACCESSI) */}
         {/* ========================================================================= */}

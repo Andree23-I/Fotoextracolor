@@ -133,6 +133,7 @@ app.delete('/api/portfolio/image', (req, res) => {
 const CONFIG_FILE = path.join(__dirname, 'uploads', 'config.json');
 const ACTIVE_FILE = path.join(__dirname, 'uploads', 'analytics_active.json');
 const HISTORY_FILE = path.join(__dirname, 'uploads', 'analytics_history.json');
+const CHATS_FILE = path.join(__dirname, 'uploads', 'chatbot_sessions.json');
 
 app.get('/api/config', (req, res) => {
   if (fs.existsSync(CONFIG_FILE)) {
@@ -376,7 +377,7 @@ const handleClearHistory = (req, res) => {
 };
 
 // Unified /api.php route support for local Node server
-app.all('/api.php', (req, res) => {
+app.all('/api.php', async (req, res) => {
   const action = req.query.action || '';
   if (action === 'verifyPassword') {
     const pwd = req.body?.password || '';
@@ -384,6 +385,95 @@ app.all('/api.php', (req, res) => {
       return res.json({ success: true });
     }
     return res.status(401).json({ success: false, error: 'Password errata' });
+  }
+  if (action === 'chat') {
+    const userMessage = req.body?.message || '';
+    const history = req.body?.history || [];
+    const userName = req.body?.userName || 'Utente';
+    const sessionId = req.body?.sessionId || Date.now().toString();
+
+    if (!userMessage) return res.status(400).json({ error: 'Messaggio vuoto' });
+
+    const systemPrompt = `Sei l'assistente virtuale di Foto Extracolor, uno storico studio fotografico a Salerno (Via Raffaele Ricci 62, aperto dal Lunedì al Sabato).
+Stai parlando con un cliente che si chiama: ${userName}.
+Sei gentile, empatico e professionale. Usa il suo nome ogni tanto per rendere la conversazione più personale.
+Servizi offerti: Stampa foto e fine art, sviluppo rullini, gadget personalizzati, servizi fotografici per matrimoni ed eventi, riprese con drone 4K, restauro vecchie foto, scansione pellicole antiche e conversione di videocassette (VHS) in formato digitale su pennetta USB.
+Storia: Il negozio esiste da oltre 60 anni. È stato fondato da Riccardo Capasso e sua moglie Gabriela Donadio. Oggi il team include anche Annalisa, Chiara e Carmen Capasso.
+Caratteristica principale: Tutto viene stampato e lavorato nel laboratorio interno artigianale per la massima qualità.
+Contatti:
+- Indirizzo: Via Raffaele Ricci 62, Salerno
+- Email: info@fotoextracolor.com
+- WhatsApp / Telefono: +39 3246687521
+
+Regole per te:
+- Rispondi in modo conciso e molto amichevole (massimo 2-3 brevi frasi).
+- Se ti chiedono i contatti (email, telefono, indirizzo), fornisci le informazioni elencate sopra.
+- Se ti chiedono un servizio che non facciamo, dì gentilmente che non lo offriamo.
+- Se chiedono i prezzi, invita l'utente a scriverci su WhatsApp o a venire in negozio, poiché i prezzi dipendono dalle quantità e dal formato.
+- Parla sempre in italiano.`;
+
+    try {
+      const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.GROQ_API_KEY || 'INSERISCI_QUI_LA_TUA_CHIAVE'}`
+        },
+        body: JSON.stringify({
+          model: 'qwen/qwen3.8-27b',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...history,
+            { role: 'user', content: userMessage }
+          ],
+          temperature: 0.7,
+          max_tokens: 150
+        })
+      });
+
+      const data = await groqRes.json();
+      if (data.choices && data.choices.length > 0) {
+        const reply = data.choices[0].message.content;
+
+        // Salva nel file JSON
+        let chatsData = {};
+        if (fs.existsSync(CHATS_FILE)) {
+          try { chatsData = JSON.parse(fs.readFileSync(CHATS_FILE, 'utf8')); } catch(e) {}
+        }
+        if (!chatsData[sessionId]) {
+          chatsData[sessionId] = {
+            sessionId,
+            userName,
+            startTime: new Date().toISOString(),
+            messages: []
+          };
+        }
+        chatsData[sessionId].messages.push({ sender: 'user', text: userMessage, timestamp: new Date().toISOString() });
+        chatsData[sessionId].messages.push({ sender: 'bot', text: reply, timestamp: new Date().toISOString() });
+        fs.writeFileSync(CHATS_FILE, JSON.stringify(chatsData, null, 2));
+
+        return res.json({ reply });
+      } else {
+        return res.status(500).json({ error: "Errore durante la comunicazione con l'intelligenza artificiale" });
+      }
+    } catch (e) {
+      console.error("Errore chat API:", e);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  }
+  if (action === 'getChats') {
+    if (fs.existsSync(CHATS_FILE)) {
+      try {
+        const chatsData = JSON.parse(fs.readFileSync(CHATS_FILE, 'utf8'));
+        // Ritorna le chat convertite in array e ordinate per data decrescente
+        const chatsArray = Object.values(chatsData).sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+        return res.json({ success: true, chats: chatsArray });
+      } catch(e) {
+        return res.json({ success: true, chats: [] });
+      }
+    } else {
+      return res.json({ success: true, chats: [] });
+    }
   }
   if (action === 'trackPing') return handleAnalyticsPing(req, res);
   if (action === 'trackLeave') return handleAnalyticsLeave(req, res);

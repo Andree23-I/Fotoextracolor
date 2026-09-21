@@ -10,6 +10,7 @@ import {
 import "./index.css";
 import Lightbox from "./components/Lightbox.jsx";
 import Carousel from "./components/Carousel.jsx";
+import Chatbot from "./components/Chatbot.jsx";
 import logo from "./assets/logo.jpeg";
 import heroPhoto from "./assets/scuro.jpeg";
 import lightHeroPhoto from "./assets/chiaro.jpeg";
@@ -2412,6 +2413,7 @@ function App() {
           onClose={() => setPhotoModalOpen(false)}
           language={language}
         />
+        <Chatbot translations={translations} />
       </div>
     </Router>
   );

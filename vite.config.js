@@ -30,5 +30,10 @@ export default defineConfig({
   build: {
     outDir: "dist",
   },
+  server: {
+    proxy: {
+      "/api.php": "http://localhost:3001"
+    }
+  },
   plugins: [react(), createStaticRoutePages()],
 });

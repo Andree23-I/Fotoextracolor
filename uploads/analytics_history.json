@@ -1,0 +1,70 @@
+[
+  {
+    "sessionId": "sess_mubrtfai_w7z5y",
+    "visitorId": "vis_mtvz7a8f_jkmb0",
+    "ip": "::1",
+    "deviceType": "Desktop",
+    "os": "Windows 10/11",
+    "browser": "Firefox",
+    "screen": "1920x1080",
+    "landingPage": "/",
+    "lastPage": "/admin",
+    "pageViews": 2,
+    "pages": [
+      "/",
+      "/admin"
+    ],
+    "referrer": "Accesso Diretto",
+    "language": "it",
+    "theme": "dark",
+    "startTime": 1790026930,
+    "endTime": 1790029349,
+    "durationSeconds": 2419,
+    "status": "online"
+  },
+  {
+    "sessionId": "sess_mubrbka8_phhm0",
+    "visitorId": "vis_mtvz7a8f_jkmb0",
+    "ip": "::1",
+    "deviceType": "Desktop",
+    "os": "Windows 10/11",
+    "browser": "Firefox",
+    "screen": "1920x1080",
+    "landingPage": "/admin",
+    "lastPage": "/admin",
+    "pageViews": 1,
+    "pages": [
+      "/admin"
+    ],
+    "referrer": "Accesso Diretto",
+    "language": "it",
+    "theme": "dark",
+    "startTime": 1790026875,
+    "endTime": 1790029350,
+    "durationSeconds": 2475,
+    "status": "online"
+  },
+  {
+    "sessionId": "sess_mubrhs8y_3d63q",
+    "visitorId": "vis_mtvz7a8f_jkmb0",
+    "ip": "::1",
+    "deviceType": "Desktop",
+    "os": "Windows 10/11",
+    "browser": "Firefox",
+    "screen": "1920x1080",
+    "landingPage": "/",
+    "lastPage": "/admin",
+    "pageViews": 2,
+    "pages": [
+      "/",
+      "/admin"
+    ],
+    "referrer": "Accesso Diretto",
+    "language": "it",
+    "theme": "dark",
+    "startTime": 1790026874,
+    "endTime": 1790029348,
+    "durationSeconds": 2474,
+    "status": "online"
+  }
+]

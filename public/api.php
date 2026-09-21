@@ -473,8 +473,130 @@ switch ($action) {
         echo json_encode(["success" => true, "message" => "Cronologia azzerata con successo"]);
         break;
 
+    case 'verifyPassword':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $pwd = isset($data['password']) ? $data['password'] : '';
+        if ($pwd === 'fotoextracolor@100') {
+            echo json_encode(['success' => true]);
+        } else {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'error' => 'Password errata']);
+        }
+        break;
+
+    case 'getChats':
+        $chatsFile = __DIR__ . '/uploads/chatbot_sessions.json';
+        if (file_exists($chatsFile)) {
+            $chatsData = json_decode(file_get_contents($chatsFile), true) ?: [];
+            $chatsArray = array_values($chatsData);
+            usort($chatsArray, function($a, $b) {
+                return strtotime($b['startTime']) - strtotime($a['startTime']);
+            });
+            echo json_encode(['success' => true, 'chats' => $chatsArray]);
+        } else {
+            echo json_encode(['success' => true, 'chats' => []]);
+        }
+        break;
+
+    case 'chat':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $userMessage = isset($data['message']) ? $data['message'] : '';
+        $history = isset($data['history']) ? $data['history'] : [];
+        $userName = isset($data['userName']) ? $data['userName'] : 'Utente';
+        $sessionId = isset($data['sessionId']) ? $data['sessionId'] : (string)time();
+
+        if (empty($userMessage)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Messaggio vuoto']);
+            break;
+        }
+
+        $systemPrompt = "Sei l'assistente virtuale di Foto Extracolor, uno storico studio fotografico a Salerno (Via Raffaele Ricci 62, aperto dal Lunedì al Sabato).
+Stai parlando con un cliente che si chiama: {$userName}.
+Sei gentile, empatico e professionale. Usa il suo nome ogni tanto per rendere la conversazione più personale.
+Servizi offerti: Stampa foto e fine art, sviluppo rullini, gadget personalizzati, servizi fotografici per matrimoni ed eventi, riprese con drone 4K, restauro vecchie foto, scansione pellicole antiche e conversione di videocassette (VHS) in formato digitale su pennetta USB.
+Storia: Il negozio esiste da oltre 60 anni. È stato fondato da Riccardo Capasso e sua moglie Gabriela Donadio. Oggi il team include anche Annalisa, Chiara e Carmen Capasso.
+Caratteristica principale: Tutto viene stampato e lavorato nel laboratorio interno artigianale per la massima qualità.
+Contatti:
+- Indirizzo: Via Raffaele Ricci 62, Salerno
+- Email: info@fotoextracolor.com
+- WhatsApp / Telefono: +39 3246687521
+
+Regole per te:
+- Rispondi in modo conciso e molto amichevole (massimo 2-3 brevi frasi).
+- Se ti chiedono i contatti (email, telefono, indirizzo), fornisci le informazioni elencate sopra.
+- Se ti chiedono un servizio che non facciamo, dì gentilmente che non lo offriamo.
+- Se chiedono i prezzi, invita l'utente a scriverci su WhatsApp o a venire in negozio, poiché i prezzi dipendono dalle quantità e dal formato.
+- Parla sempre in italiano.";
+
+        $messages = [
+            ['role' => 'system', 'content' => $systemPrompt]
+        ];
+        foreach ($history as $h) {
+            $messages[] = $h;
+        }
+        $messages[] = ['role' => 'user', 'content' => $userMessage];
+
+        $groqPayload = [
+            'model' => 'qwen/qwen3.8-27b',
+            'messages' => $messages,
+            'temperature' => 0.7,
+            'max_tokens' => 150
+        ];
+
+        $ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($groqPayload));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'Authorization: Bearer INSERISCI_QUI_LA_TUA_CHIAVE'
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode >= 200 && $httpCode < 300) {
+            $groqData = json_decode($response, true);
+            if (isset($groqData['choices'][0]['message']['content'])) {
+                $reply = $groqData['choices'][0]['message']['content'];
+
+                // Salva su JSON
+                $chatsFile = __DIR__ . '/uploads/chatbot_sessions.json';
+                $chatsData = [];
+                if (file_exists($chatsFile)) {
+                    $chatsData = json_decode(file_get_contents($chatsFile), true) ?: [];
+                }
+
+                if (!isset($chatsData[$sessionId])) {
+                    $chatsData[$sessionId] = [
+                        'sessionId' => $sessionId,
+                        'userName' => $userName,
+                        'startTime' => date('c'),
+                        'messages' => []
+                    ];
+                }
+
+                $chatsData[$sessionId]['messages'][] = ['sender' => 'user', 'text' => $userMessage, 'timestamp' => date('c')];
+                $chatsData[$sessionId]['messages'][] = ['sender' => 'bot', 'text' => $reply, 'timestamp' => date('c')];
+
+                file_put_contents($chatsFile, json_encode($chatsData, JSON_PRETTY_PRINT));
+
+                echo json_encode(['reply' => $reply]);
+            } else {
+                http_response_code(500);
+                echo json_encode(['error' => 'Errore nella risposta di Groq']);
+            }
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Errore di comunicazione con AI', 'details' => $response]);
+        }
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(["error" => "Azione non valida"]);
         break;
 }
+?>

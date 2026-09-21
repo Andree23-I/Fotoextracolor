@@ -1,0 +1,46 @@
+{
+  "1790028160108": {
+    "sessionId": "1790028160108",
+    "userName": "Utente",
+    "startTime": "2026-09-21T22:02:40.386Z",
+    "messages": [
+      {
+        "sender": "user",
+        "text": "buonasera",
+        "timestamp": "2026-09-21T22:02:40.386Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Buonasera! Come possiamo aiutarti?",
+        "timestamp": "2026-09-21T22:02:40.386Z"
+      }
+    ]
+  },
+  "1790028755938gjgjv": {
+    "sessionId": "1790028755938gjgjv",
+    "userName": "andrea test",
+    "startTime": "2026-09-21T22:12:52.600Z",
+    "messages": [
+      {
+        "sender": "user",
+        "text": "ciao ",
+        "timestamp": "2026-09-21T22:12:52.600Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Ciao Andrea! Benvenuto da Foto Extracolor. Come posso aiutarti oggi?",
+        "timestamp": "2026-09-21T22:12:52.600Z"
+      },
+      {
+        "sender": "user",
+        "text": "ciao ",
+        "timestamp": "2026-09-21T22:13:33.757Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Ciao di nuovo, Andrea! Come posso esserti utile oggi?",
+        "timestamp": "2026-09-21T22:13:33.757Z"
+      }
+    ]
+  }
+}
