@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, lazy, Suspense } from "react";
 import {
-  BrowserRouter as Router,
+  HashRouter as Router,
   Routes,
   Route,
   Link,
@@ -2315,9 +2315,8 @@ function ChiSiamo({ content, language }) {
         </div>
       </section>
 
-      {/* Lightbox for archive photos */}
       <Lightbox
-        images={storiaImages}
+        images={STORIA_IMAGES}
         index={selectedIndex}
         onClose={() => setSelectedIndex(null)}
         onPrev={goPrev}
