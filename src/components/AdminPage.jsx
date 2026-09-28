@@ -1317,11 +1317,10 @@ export default function AdminPage() {
                 </div>
                 <h3>Pagina "Chi Siamo"</h3>
                 <p className="admin-mode-desc">
-                  Ideale per un sito web vetrina. Racconta oltre 60 anni di storia di Foto Extracolor, la fondazione di Riccardo Capasso & Gabriela Donadio, la presentazione dello staff, i valori aziendali e l'archivio storico.
+                  Ideale per un sito web vetrina. Racconta oltre 60 anni di storia di Foto Extracolor, la fondazione di Riccardo Capasso & Gabriela Donadio, i valori aziendali e l'archivio storico.
                 </p>
                 <ul className="admin-mode-perks">
                   <li>✓ Storia & Origini del laboratorio</li>
-                  <li>✓ Presentazione approfondita dello Staff</li>
                   <li>✓ Valori aziendali & Statistiche chiave</li>
                   <li>✓ Archivio storico con Lightbox</li>
                   <li>✓ Box contatto rapido (WhatsApp / Email)</li>

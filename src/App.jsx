@@ -29,27 +29,6 @@ const STORIA_IMAGES = Object.values(
   }),
 );
 
-const STAFF_GLOBS = import.meta.glob(
-  [
-    "/src/assets/staff/*.{jpg,jpeg,png}",
-    "/src/assets/Photos/Staff/*.{jpg,jpeg,png}",
-  ],
-  { eager: true, query: "?url", import: "default" },
-);
-
-const STAFF_IMAGE_MAP = {};
-Object.entries(STAFF_GLOBS).forEach(([path, url]) => {
-  const fname = path.split("/").pop().toLowerCase();
-  STAFF_IMAGE_MAP[fname] = url;
-});
-
-const getStaffAvatar = (name) => {
-  if (!name) return null;
-  const first = name.split(" ")[0].toLowerCase();
-  const key = Object.keys(STAFF_IMAGE_MAP).find((k) => k.includes(first));
-  return key ? STAFF_IMAGE_MAP[key] : null;
-};
-
 // Interactive Camera HUD Settings & LUT Profiles
 const HUD_RESOLUTIONS = ["8K PRO", "4K RAW", "1080p CINEMA", "720p RETRO"];
 
@@ -332,8 +311,6 @@ const translations = {
       servicesText:
         "Dalla stampa professionale ai gadget personalizzati, passando per matrimoni con riprese drone, eventi e conversioni da VHS a digitale.",
       servicesCta: "Scopri Tutti i Servizi",
-      staffKicker: "Il Team",
-      staffTitle: "Il Nostro Staff",
       contactTitle: "Vieni a Trovarci",
       addressLabel: "Indirizzo:",
       phoneLabel: "Telefono:",
@@ -390,24 +367,6 @@ const translations = {
           desc: "Un'accoglienza calorosa e una consulenza su misura per ogni singola esigenza del cliente.",
         },
       ],
-      teamKicker: "Il Nostro Staff",
-      teamTitle: "I Volti di Foto Extracolor",
-      teamSubtitle:
-        "Una squadra affiatata e appassionata pronta a dare vita e luce ai tuoi progetti fotografici.",
-      staffList: [
-        {
-          name: "Annalisa Capasso",
-          role: "Stampa Digitale & Conversione VHS",
-        },
-        {
-          name: "Chiara Capasso",
-          role: "Stampa Digitale & Assistenza Clienti",
-        },
-        {
-          name: "Carmen Capasso",
-          role: "Eventi & Fotoritocco",
-        },
-      ],
       galleryKicker: "Archivio Fotografico",
       galleryTitle: "Scorci dal Nostro Archivio Storico",
       gallerySubtitle:
@@ -457,8 +416,6 @@ const translations = {
       servicesText:
         "From professional printing to personalized gadgets, including weddings with drone footage, events, and VHS to digital conversions.",
       servicesCta: "Discover All Services",
-      staffKicker: "The Team",
-      staffTitle: "Our Staff",
       contactTitle: "Come Visit Us",
       addressLabel: "Address:",
       phoneLabel: "Phone:",
@@ -513,24 +470,6 @@ const translations = {
         {
           title: "Family Care & Attention",
           desc: "Friendly, tailored advice to help you select the ideal formats, frames, and print finishes.",
-        },
-      ],
-      teamKicker: "Our Team",
-      teamTitle: "The Faces Behind Foto Extracolor",
-      teamSubtitle:
-        "A dedicated and passionate team ready to bring brightness and life to your photographic ideas.",
-      staffList: [
-        {
-          name: "Annalisa Capasso",
-          role: "Digital Print & VHS Conversion",
-        },
-        {
-          name: "Chiara Capasso",
-          role: "Digital Print & Customer Service",
-        },
-        {
-          name: "Carmen Capasso",
-          role: "Event & Photo Retouching",
         },
       ],
       galleryKicker: "Photo Archive",
@@ -1411,40 +1350,6 @@ function Home({ content, language, theme, onOpenPhotoModal }) {
         </Link>
       </section>
 
-      <section id="staff" className="staff-section">
-        <span className="section-kicker elegant-scale-glow">{content.home.staffKicker}</span>
-        <h2 className="elegant-fade-up">{content.home.staffTitle}</h2>
-        <div className="staff-grid">
-            {STAFF[language].map((member, idx) => {
-              const img = getStaffAvatar(member.name);
-              return (
-                <div className={`staff-card fade-in-scale stagger-${(idx % 5) + 1}`} key={member.name}>
-                  {img ? (
-                    <div className="staff-avatar" aria-hidden="true">
-                      <img
-                        src={img}
-                        alt={member.name}
-                        className="staff-avatar-img"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </div>
-                  ) : (
-                    <div className="staff-avatar" aria-hidden="true">
-                      {member.name
-                        .split(" ")
-                        .map((word) => word[0])
-                        .join("")}
-                    </div>
-                  )}
-                  <h3>{member.name}</h3>
-                  <p>Foto Extracolor</p>
-                </div>
-              );
-            })}
-        </div>
-      </section>
-
       <section id="contatti" className="contact-section">
         <h2 className="elegant-slide-right">{content.home.contactTitle}</h2>
         <div className="contact-container">
@@ -1821,11 +1726,6 @@ const SERVICES = {
   ],
 };
 
-const STAFF = {
-  it: [{ name: "Annalisa Capasso" }, { name: "Chiara Capasso" }, { name: "Carmen Capasso" }],
-  en: [{ name: "Annalisa Capasso" }, { name: "Chiara Capasso" }, { name: "Carmen Capasso" }],
-};
-
 const iconMap = {
   IconCamera, IconPrinter, IconCalendar, IconFilm, IconConvert, IconDrone, IconGift
 };
@@ -2179,51 +2079,6 @@ function ChiSiamo({ content, language }) {
                   </div>
                   <h3>{item.title}</h3>
                   <p>{item.desc}</p>
-                </div>
-              );
-            })}
-        </div>
-      </section>
-
-      {/* Team & Staff Section */}
-      <section className="chisiamo-team-section">
-        <div className="section-header-centered fade-in">
-          <span className="section-kicker">{content.chisiamo.teamKicker}</span>
-          <h2>{content.chisiamo.teamTitle}</h2>
-          <p className="section-header-desc">{content.chisiamo.teamSubtitle}</p>
-        </div>
-
-        <div className="chisiamo-team-grid">
-          {content.chisiamo.staffList &&
-            content.chisiamo.staffList.map((member, idx) => {
-              const img = getStaffAvatar(member.name);
-              return (
-                <div
-                  className={`chisiamo-team-card fade-in-scale stagger-${(idx % 3) + 1}`}
-                  key={member.name}
-                >
-                  <div className="chisiamo-team-avatar-wrap">
-                    {img ? (
-                      <img
-                        src={img}
-                        alt={member.name}
-                        className="chisiamo-team-avatar-img"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ) : (
-                      <div className="chisiamo-team-avatar-fallback">
-                        {member.name
-                          .split(" ")
-                          .map((w) => w[0])
-                          .join("")}
-                      </div>
-                    )}
-                  </div>
-                  <div className="chisiamo-team-info">
-                    <h3>{member.name}</h3>
-                    <span className="chisiamo-team-role">{member.role}</span>
-                  </div>
                 </div>
               );
             })}
