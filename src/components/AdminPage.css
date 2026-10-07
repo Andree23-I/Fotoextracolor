@@ -1950,4 +1950,116 @@
   }
 }
 
+/* ==========================================================================
+   AI Integration Config Card (Admin Dashboard)
+   ========================================================================== */
+.admin-ai-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+:root[data-theme="light"] .admin-ai-card {
+  background: #ffffff;
+  border-color: rgba(216, 69, 0, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.admin-ai-card-header {
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 1rem;
+}
+
+:root[data-theme="light"] .admin-ai-card-header {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+.admin-ai-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-ai-icon {
+  font-size: 2.2rem;
+  background: rgba(212, 175, 55, 0.12);
+  border-radius: 12px;
+  padding: 0.5rem;
+  display: inline-flex;
+}
+
+.admin-ai-title {
+  margin: 0 0 0.3rem 0;
+  font-size: 1.25rem;
+  color: var(--primary-color);
+  font-family: var(--font-serif);
+}
+
+:root[data-theme="light"] .admin-ai-title {
+  color: #d84500;
+}
+
+.admin-ai-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.ai-status-active {
+  color: #4ade80;
+}
+
+.ai-status-fallback {
+  color: #fbbf24;
+}
+
+.admin-ai-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.admin-ai-input-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.admin-ai-input {
+  flex: 1;
+  min-width: 260px;
+  font-family: monospace;
+  font-size: 0.95rem;
+}
+
+.admin-ai-feedback {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #4ade80;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.admin-ai-help {
+  margin-top: 0.85rem;
+  font-size: 0.85rem;
+  color: #a0a0a0;
+  line-height: 1.5;
+}
+
+:root[data-theme="light"] .admin-ai-help {
+  color: #666;
+}
+
 

@@ -48,6 +48,12 @@ export default function AdminPage() {
   const [chatsData, setChatsData] = useState([]);
   const [isChatsLoading, setIsChatsLoading] = useState(false);
 
+  // Groq AI Config State
+  const [groqApiKey, setGroqApiKey] = useState('');
+  const [apiKeyFeedback, setApiKeyFeedback] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isSavingApiKey, setIsSavingApiKey] = useState(false);
+
   // Lock body scroll and listen for Escape key when session detail modal is open
   useEffect(() => {
     if (!selectedSessionDetail) return;
@@ -71,9 +77,14 @@ export default function AdminPage() {
     fetch('/api.php?action=getConfig')
       .then(res => res.json())
       .then(data => {
-        if (data && data.pageMode) {
-          setPageMode(data.pageMode);
-          localStorage.setItem('fotoextracolor_page_mode', data.pageMode);
+        if (data) {
+          if (data.pageMode) {
+            setPageMode(data.pageMode);
+            localStorage.setItem('fotoextracolor_page_mode', data.pageMode);
+          }
+          if (data.groqApiKey) {
+            setGroqApiKey(data.groqApiKey);
+          }
         }
       })
       .catch(() => {
@@ -313,6 +324,29 @@ export default function AdminPage() {
     }
     setIsChatsLoading(false);
   }, []);
+
+  const handleSaveApiKey = async (e) => {
+    e.preventDefault();
+    setIsSavingApiKey(true);
+    try {
+      const res = await fetch('/api.php?action=saveConfig', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: { groqApiKey: groqApiKey.trim() } })
+      });
+      const data = await res.json();
+      if (data && data.success) {
+        setApiKeyFeedback('✓ Chiave Groq API salvata con successo!');
+      } else {
+        setApiKeyFeedback('Errore durante il salvataggio della chiave.');
+      }
+    } catch (err) {
+      setApiKeyFeedback('Errore di connessione al server.');
+    } finally {
+      setIsSavingApiKey(false);
+      setTimeout(() => setApiKeyFeedback(''), 4500);
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'chats') {
@@ -774,6 +808,62 @@ export default function AdminPage() {
         {/* ========================================================================= */}
         {activeTab === 'chats' && (
           <div className="admin-section animate-fade-in">
+            {/* Box Configurazione Intelligenza Artificiale */}
+            <div className="admin-ai-card">
+              <div className="admin-ai-card-header">
+                <div className="admin-ai-badge-row">
+                  <span className="admin-ai-icon">🤖</span>
+                  <div>
+                    <h3 className="admin-ai-title">Assistente Virtuale AI (Groq Cloud)</h3>
+                    <p className="admin-ai-subtitle">
+                      {groqApiKey && groqApiKey.trim().length > 10 ? (
+                        <span className="ai-status-active">🟢 AI Attiva (Modello: Llama 3.3 70B Versatile)</span>
+                      ) : (
+                        <span className="ai-status-fallback">🟡 Assistente Locale Attivo (Risposte intelligenti di cortesia su orari, servizi, preventivi WhatsApp e sede)</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveApiKey} className="admin-ai-form">
+                <label className="admin-ai-label">Chiave API Groq (GROQ_API_KEY):</label>
+                <div className="admin-ai-input-row">
+                  <input
+                    type={showApiKey ? "text" : "password"}
+                    value={groqApiKey}
+                    onChange={(e) => setGroqApiKey(e.target.value)}
+                    placeholder="gsk_..."
+                    className="admin-input admin-ai-input"
+                  />
+                  <button
+                    type="button"
+                    className="admin-btn-secondary"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    title={showApiKey ? "Nascondi" : "Mostra"}
+                  >
+                    {showApiKey ? "👁️ Nascondi" : "👁️ Mostra"}
+                  </button>
+                  <button
+                    type="submit"
+                    className="admin-btn-primary"
+                    disabled={isSavingApiKey}
+                  >
+                    {isSavingApiKey ? "Salvataggio..." : "💾 Salva Chiave"}
+                  </button>
+                </div>
+                {apiKeyFeedback && (
+                  <div className="admin-ai-feedback">{apiKeyFeedback}</div>
+                )}
+                <p className="admin-ai-help">
+                  💡 Puoi ottenere una chiave API gratuita su{" "}
+                  <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style={{ color: "var(--primary-color)", textDecoration: "underline" }}>
+                    console.groq.com/keys
+                  </a>. Anche senza chiave, il sito risponde già automaticamente con le informazioni ufficiali di Foto Extracolor!
+                </p>
+              </form>
+            </div>
+
             <h2>Storico Chatbot</h2>
             <div className="admin-card">
               <div className="admin-card-header">

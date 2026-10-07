@@ -78,14 +78,14 @@ export default function Chatbot({ translations }) {
       const botMsg = { 
         id: Date.now() + 1, 
         sender: 'bot', 
-        text: data.reply || 'Scusa, ho avuto un problema di connessione.' 
+        text: data.reply || (data.error ? data.error : 'Grazie per averci contattato! Per informazioni immediate o preventivi puoi scriverci su WhatsApp al +39 3246687521.') 
       };
       setMessages(prev => [...prev, botMsg]);
     } catch (err) {
       const botMsg = { 
         id: Date.now() + 1, 
         sender: 'bot', 
-        text: 'Errore di rete. Assicurati che il server backend (server.js) sia in esecuzione!' 
+        text: 'Errore temporaneo di connessione. Puoi contattarci direttamente su WhatsApp al +39 3246687521 oppure in Via Raffaele Ricci 62 a Salerno.' 
       };
       setMessages(prev => [...prev, botMsg]);
     } finally {

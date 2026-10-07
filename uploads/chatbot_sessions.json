@@ -42,5 +42,237 @@
         "timestamp": "2026-09-21T22:13:33.757Z"
       }
     ]
+  },
+  "test_session_1": {
+    "sessionId": "test_session_1",
+    "userName": "Andrea",
+    "startTime": "2026-10-07T22:45:13.733Z",
+    "messages": [
+      {
+        "sender": "user",
+        "text": "quali sono i vostri orari?",
+        "timestamp": "2026-10-07T22:45:13.734Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Lo studio Foto Extracolor è aperto dal Lunedì al Sabato. Per qualsiasi esigenza o per fissare un appuntamento puoi scriverci su WhatsApp al +39 3246687521.",
+        "timestamp": "2026-10-07T22:45:13.734Z"
+      },
+      {
+        "sender": "user",
+        "text": "convertite vhs?",
+        "timestamp": "2026-10-07T22:46:39.614Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Certamente! Eseguiamo la conversione e digitalizzazione professionale di videocassette (VHS, Video8, MiniDV) direttamente su chiavetta USB o hard disk. Portaci i tuoi nastri in negozio per custodire i tuoi ricordi!",
+        "timestamp": "2026-10-07T22:46:39.614Z"
+      },
+      {
+        "sender": "user",
+        "text": "dove vi trovate?",
+        "timestamp": "2026-10-07T22:47:07.524Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Ci troviamo a Salerno in Via Raffaele Ricci 62. Siamo aperti dal Lunedì al Sabato con laboratorio artigianale interno. Ti aspettiamo!",
+        "timestamp": "2026-10-07T22:47:07.524Z"
+      }
+    ]
+  },
+  "1791413039820h54x9": {
+    "sessionId": "1791413039820h54x9",
+    "userName": "joòlh",
+    "startTime": "2026-10-07T22:45:25.715Z",
+    "messages": [
+      {
+        "sender": "user",
+        "text": "ciao ",
+        "timestamp": "2026-10-07T22:45:25.715Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Ciao joòlh! Benvenuto da Foto Extracolor. Come possiamo aiutarti oggi? Chiedici pure informazioni su stampe foto, sviluppo rullini, matrimoni o conversione VHS!",
+        "timestamp": "2026-10-07T22:45:25.715Z"
+      },
+      {
+        "sender": "user",
+        "text": "dove vi trovate ",
+        "timestamp": "2026-10-07T22:45:34.478Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Ci troviamo a Salerno in Via Raffaele Ricci 62. Siamo aperti dal Lunedì al Sabato con laboratorio artigianale interno. Ti aspettiamo!",
+        "timestamp": "2026-10-07T22:45:34.478Z"
+      },
+      {
+        "sender": "user",
+        "text": "quali sefizi avete ",
+        "timestamp": "2026-10-07T22:45:47.337Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Grazie per averci contattato joòlh! Per qualsiasi richiesta specifica sui nostri servizi, stampe o preventivi, puoi scriverci subito su WhatsApp al +39 3246687521 oppure passare a trovarci in Via Raffaele Ricci 62 a Salerno.",
+        "timestamp": "2026-10-07T22:45:47.337Z"
+      },
+      {
+        "sender": "user",
+        "text": "quali servizi avete ? ",
+        "timestamp": "2026-10-07T22:45:55.409Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Grazie per averci contattato joòlh! Per qualsiasi richiesta specifica sui nostri servizi, stampe o preventivi, puoi scriverci subito su WhatsApp al +39 3246687521 oppure passare a trovarci in Via Raffaele Ricci 62 a Salerno.",
+        "timestamp": "2026-10-07T22:45:55.409Z"
+      },
+      {
+        "sender": "user",
+        "text": "come va ?? ",
+        "timestamp": "2026-10-07T22:46:00.542Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Grazie per averci contattato joòlh! Per qualsiasi richiesta specifica sui nostri servizi, stampe o preventivi, puoi scriverci subito su WhatsApp al +39 3246687521 oppure passare a trovarci in Via Raffaele Ricci 62 a Salerno.",
+        "timestamp": "2026-10-07T22:46:00.542Z"
+      }
+    ]
+  },
+  "test_user_session": {
+    "sessionId": "test_user_session",
+    "userName": "Mario",
+    "startTime": "2026-10-07T22:50:35.248Z",
+    "messages": [
+      {
+        "sender": "user",
+        "text": "ciao",
+        "timestamp": "2026-10-07T22:50:35.248Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Ciao Mario! Benvenuto da Foto Extracolor. Come possiamo aiutarti oggi? Chiedici pure informazioni su stampe foto, sviluppo rullini, matrimoni o conversione VHS!",
+        "timestamp": "2026-10-07T22:50:35.248Z"
+      },
+      {
+        "sender": "user",
+        "text": "quanto costano le stampe?",
+        "timestamp": "2026-10-07T22:50:35.336Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Ciao Mario! Per informazioni sui prezzi e preventivi su misura (che variano in base al formato e alle quantità), puoi scriverci su WhatsApp al 3246687521 oppure passare in negozio in Via Raffaele Ricci 62 a Salerno.",
+        "timestamp": "2026-10-07T22:50:35.336Z"
+      },
+      {
+        "sender": "user",
+        "text": "dove vi trovate?",
+        "timestamp": "2026-10-07T22:50:35.343Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Ci troviamo a Salerno in Via Raffaele Ricci 62. Siamo aperti dal Lunedì al Sabato con laboratorio artigianale interno. Ti aspettiamo!",
+        "timestamp": "2026-10-07T22:50:35.343Z"
+      },
+      {
+        "sender": "user",
+        "text": "fate foto per matrimoni?",
+        "timestamp": "2026-10-07T22:50:35.348Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Realizziamo reportage fotografici e video completi per matrimoni ed eventi, incluse riprese aeree professionali con drone 4K certificate. Contattaci su WhatsApp al 3246687521 per verificare la data!",
+        "timestamp": "2026-10-07T22:50:35.348Z"
+      },
+      {
+        "sender": "user",
+        "text": "digitalizzate vhs?",
+        "timestamp": "2026-10-07T22:50:35.352Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Certamente! Eseguiamo la conversione e digitalizzazione professionale di videocassette (VHS, Video8, MiniDV) direttamente su chiavetta USB o hard disk. Portaci i tuoi nastri in negozio per custodire i tuoi ricordi!",
+        "timestamp": "2026-10-07T22:50:35.352Z"
+      }
+    ]
+  },
+  "session_final_test": {
+    "sessionId": "session_final_test",
+    "userName": "Andrea",
+    "startTime": "2026-10-07T22:51:23.841Z",
+    "messages": [
+      {
+        "sender": "user",
+        "text": "quali servizi avete?",
+        "timestamp": "2026-10-07T22:51:23.842Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Da Foto Extracolor offriamo: stampa foto immediata e fine art, sviluppo e scansione rullini/pellicole, gadget personalizzati, servizi fotografici e video per matrimoni ed eventi (con drone 4K), restauro vecchie foto e conversione videocassette (VHS) su chiavetta USB!",
+        "timestamp": "2026-10-07T22:51:23.842Z"
+      }
+    ]
+  },
+  "live_ai_test": {
+    "sessionId": "live_ai_test",
+    "userName": "Andrea",
+    "startTime": "2026-10-07T22:56:10.145Z",
+    "messages": [
+      {
+        "sender": "user",
+        "text": "Ciao, mi dici brevemente chi siete e dove vi trovate?",
+        "timestamp": "2026-10-07T22:56:10.145Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Ciao Andrea! Siamo Foto Extracolor, uno storico studio di Salerno attivo da oltre 60 anni, con laboratorio interno artigianale. Ci trovi in Via Raffaele Ricci 62, siamo aperti da lunedì a sabato.",
+        "timestamp": "2026-10-07T22:56:10.145Z"
+      },
+      {
+        "sender": "user",
+        "text": "Ciao, che servizi speciali offrite oltre alle foto normali?",
+        "timestamp": "2026-10-07T22:56:30.230Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Ciao Andrea! Offriamo molti servizi speciali come il restauro di vecchie foto, lo sviluppo rullini e la conversione di videocassette VHS su USB. Inoltre, realizziamo gadget personalizzati e riprese con drone 4K, tutto lavorato artigianalmente nel nostro laboratorio storico.",
+        "timestamp": "2026-10-07T22:56:30.230Z"
+      }
+    ]
+  },
+  "1791413832853jvwii": {
+    "sessionId": "1791413832853jvwii",
+    "userName": "andrea test 08 10",
+    "startTime": "2026-10-07T22:57:25.431Z",
+    "messages": [
+      {
+        "sender": "user",
+        "text": "dove vi trovate ? ",
+        "timestamp": "2026-10-07T22:57:25.431Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Ciao Andrea! Ci trovi in Via Raffaele Ricci 62, a Salerno. Saremo felici di accoglierti in negozio!",
+        "timestamp": "2026-10-07T22:57:25.431Z"
+      },
+      {
+        "sender": "user",
+        "text": "che servizi offrite ",
+        "timestamp": "2026-10-07T22:57:38.376Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Offriamo stampa fine art, sviluppo rullini, gadget personalizzati e servizi fotografici per eventi, oltre a riprese con drone 4K. Ci occupiamo anche del restauro di vecchie foto e della conversione di VHS in digitale.",
+        "timestamp": "2026-10-07T22:57:38.376Z"
+      },
+      {
+        "sender": "user",
+        "text": "mi porti inella pagina dei servizi ",
+        "timestamp": "2026-10-07T22:57:50.645Z"
+      },
+      {
+        "sender": "bot",
+        "text": "Non ho un link diretto, ma ti consiglio di scriverci su WhatsApp al +39 3246687521 per ricevere il listino completo. In alternativa, vieni a trovarci in Via Raffaele Ricci 62!",
+        "timestamp": "2026-10-07T22:57:50.645Z"
+      }
+    ]
   }
 }

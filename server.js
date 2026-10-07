@@ -8,6 +8,16 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Carica variabili d'ambiente da .env se presente
+const envPath = path.join(__dirname, '.env');
+if (fs.existsSync(envPath) && typeof process.loadEnvFile === 'function') {
+  try {
+    process.loadEnvFile(envPath);
+  } catch (err) {
+    console.warn("Avviso: Impossibile caricare il file .env:", err.message);
+  }
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -376,6 +386,50 @@ const handleClearHistory = (req, res) => {
   res.json({ success: true, message: 'Cronologia azzerata con successo' });
 };
 
+// Helper: Risposta intelligente di cortesia in caso di assenza chiave API o errore di rete
+const generateFallbackReply = (userMessage, userName) => {
+  const msg = (userMessage || '').toLowerCase();
+  const name = userName && userName !== 'Utente' ? ` ${userName}` : '';
+
+  if (msg.includes('serviz') || msg.includes('offrite') || msg.includes('cosa fate') || msg.includes('lavori') || msg.includes('prodott')) {
+    return `Da Foto Extracolor offriamo: stampa foto immediata e fine art, sviluppo e scansione rullini/pellicole, gadget personalizzati, servizi fotografici e video per matrimoni ed eventi (con drone 4K), restauro vecchie foto e conversione videocassette (VHS) su chiavetta USB!`;
+  }
+  if (msg.includes('come va') || msg.includes('tutto bene')) {
+    return `Tutto benissimo, grazie${name}! Siamo pronti ad aiutarti con i tuoi scatti e progetti fotografici. Come possiamo esserti utili oggi?`;
+  }
+  if (msg.includes('prezz') || msg.includes('cost') || msg.includes('quant') || msg.includes('tariff') || msg.includes('preventiv')) {
+    return `Ciao${name}! Per informazioni sui prezzi e preventivi su misura (che variano in base al formato e alle quantità), puoi scriverci su WhatsApp al 3246687521 oppure passare in negozio in Via Raffaele Ricci 62 a Salerno.`;
+  }
+  if (msg.includes('dove') || msg.includes('indirizz') || msg.includes('via') || msg.includes('trov') || msg.includes('posizion') || msg.includes('mappa')) {
+    return `Ci troviamo a Salerno in Via Raffaele Ricci 62. Siamo aperti dal Lunedì al Sabato con laboratorio artigianale interno. Ti aspettiamo!`;
+  }
+  if (msg.includes('orar') || msg.includes('apert') || msg.includes('chius') || msg.includes('quand')) {
+    return `Lo studio Foto Extracolor è aperto dal Lunedì al Sabato. Per qualsiasi esigenza o per fissare un appuntamento puoi scriverci su WhatsApp al +39 3246687521.`;
+  }
+  if (msg.includes('vhs') || msg.includes('cassett') || msg.includes('digital') || msg.includes('riversament') || msg.includes('convers')) {
+    return `Certamente! Eseguiamo la conversione e digitalizzazione professionale di videocassette (VHS, Video8, MiniDV) direttamente su chiavetta USB o hard disk. Portaci i tuoi nastri in negozio per custodire i tuoi ricordi!`;
+  }
+  if (msg.includes('rullin') || msg.includes('svilupp') || msg.includes('pellicol') || msg.includes('analogic') || msg.includes('negativ')) {
+    return `Certamente! Siamo specializzati nello sviluppo e stampa di rullini e pellicole, con oltre 60 anni di esperienza artigianale nel nostro laboratorio interno.`;
+  }
+  if (msg.includes('matrimon') || msg.includes('spos') || msg.includes('event') || msg.includes('cerimoni') || msg.includes('battesim') || msg.includes('comunion') || msg.includes('drone')) {
+    return `Realizziamo reportage fotografici e video completi per matrimoni ed eventi, incluse riprese aeree professionali con drone 4K certificate. Contattaci su WhatsApp al 3246687521 per verificare la data!`;
+  }
+  if (msg.includes('stamp') || msg.includes('foto') || msg.includes('gadget') || msg.includes('quadr') || msg.includes('ingrandiment') || msg.includes('album') || msg.includes('fotolibr')) {
+    return `Offriamo stampa fotografica professionale, stampe fine art, gadget personalizzati e fotolibri artigianali. Puoi portarci i tuoi scatti in Via Raffaele Ricci 62 o inviarceli su WhatsApp!`;
+  }
+  if (msg.includes('contatt') || msg.includes('whatsapp') || msg.includes('telefon') || msg.includes('numero') || msg.includes('mail') || msg.includes('chiam')) {
+    return `Puoi contattarci telefonicamente o su WhatsApp al +39 3246687521, oppure via email a info@fotoextracolor.com. Siamo in Via Raffaele Ricci 62 a Salerno!`;
+  }
+  if (msg.includes('ciao') || msg.includes('buongiorno') || msg.includes('buonasera') || msg.includes('salve') || msg.includes('hey')) {
+    return `Ciao${name}! Benvenuto da Foto Extracolor. Come possiamo aiutarti oggi? Chiedici pure informazioni su stampe foto, sviluppo rullini, matrimoni o conversione VHS!`;
+  }
+  if (msg.includes('grazie')) {
+    return `È un piacere esserti d'aiuto${name}! Se hai altre domande o desideri passare in negozio, siamo sempre a tua disposizione in Via Raffaele Ricci 62 o su WhatsApp al 3246687521.`;
+  }
+  return `Grazie per averci contattato${name}! Per qualsiasi richiesta specifica sui nostri servizi, stampe o preventivi, puoi scriverci subito su WhatsApp al +39 3246687521 oppure passare a trovarci in Via Raffaele Ricci 62 a Salerno.`;
+};
+
 // Unified /api.php route support for local Node server
 app.all('/api.php', async (req, res) => {
   const action = req.query.action || '';
@@ -393,6 +447,20 @@ app.all('/api.php', async (req, res) => {
     const sessionId = req.body?.sessionId || Date.now().toString();
 
     if (!userMessage) return res.status(400).json({ error: 'Messaggio vuoto' });
+
+    // Recupera la chiave API da .env o config.json
+    let groqApiKey = process.env.GROQ_API_KEY || '';
+    if ((!groqApiKey || groqApiKey === 'INSERISCI_QUI_LA_TUA_CHIAVE') && fs.existsSync(CONFIG_FILE)) {
+      try {
+        const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+        if (cfg.groqApiKey) groqApiKey = cfg.groqApiKey;
+      } catch (e) {}
+    }
+
+    const isKeyConfigured = groqApiKey && 
+      groqApiKey !== 'INSERISCI_QUI_LA_TUA_CHIAVE' && 
+      groqApiKey !== 'YOUR_GROQ_API_KEY' && 
+      groqApiKey.trim().length > 10;
 
     const systemPrompt = `Sei l'assistente virtuale di Foto Extracolor, uno storico studio fotografico a Salerno (Via Raffaele Ricci 62, aperto dal Lunedì al Sabato).
 Stai parlando con un cliente che si chiama: ${userName}.
@@ -412,54 +480,71 @@ Regole per te:
 - Se chiedono i prezzi, invita l'utente a scriverci su WhatsApp o a venire in negozio, poiché i prezzi dipendono dalle quantità e dal formato.
 - Parla sempre in italiano.`;
 
-    try {
-      const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.GROQ_API_KEY || 'INSERISCI_QUI_LA_TUA_CHIAVE'}`
-        },
-        body: JSON.stringify({
-          model: 'qwen/qwen3.8-27b',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...history,
-            { role: 'user', content: userMessage }
-          ],
-          temperature: 0.7,
-          max_tokens: 150
-        })
-      });
+    let reply = '';
 
-      const data = await groqRes.json();
-      if (data.choices && data.choices.length > 0) {
-        const reply = data.choices[0].message.content;
+    if (isKeyConfigured) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 9000);
 
-        // Salva nel file JSON
-        let chatsData = {};
-        if (fs.existsSync(CHATS_FILE)) {
-          try { chatsData = JSON.parse(fs.readFileSync(CHATS_FILE, 'utf8')); } catch(e) {}
+        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${groqApiKey.trim()}`
+          },
+          body: JSON.stringify({
+            model: 'qwen/qwen3.8-27b',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...history,
+              { role: 'user', content: userMessage }
+            ],
+            temperature: 0.7,
+            max_tokens: 200
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        const data = await groqRes.json();
+        if (groqRes.ok && data.choices && data.choices.length > 0) {
+          reply = data.choices[0].message.content;
+        } else {
+          console.warn("[Chatbot] Risposta non valida da Groq:", data?.error?.message || data);
+          reply = generateFallbackReply(userMessage, userName);
         }
-        if (!chatsData[sessionId]) {
-          chatsData[sessionId] = {
-            sessionId,
-            userName,
-            startTime: new Date().toISOString(),
-            messages: []
-          };
-        }
-        chatsData[sessionId].messages.push({ sender: 'user', text: userMessage, timestamp: new Date().toISOString() });
-        chatsData[sessionId].messages.push({ sender: 'bot', text: reply, timestamp: new Date().toISOString() });
-        fs.writeFileSync(CHATS_FILE, JSON.stringify(chatsData, null, 2));
-
-        return res.json({ reply });
-      } else {
-        return res.status(500).json({ error: "Errore durante la comunicazione con l'intelligenza artificiale" });
+      } catch (e) {
+        console.error("[Chatbot] Errore connessione Groq API:", e.message);
+        reply = generateFallbackReply(userMessage, userName);
       }
-    } catch (e) {
-      console.error("Errore chat API:", e);
-      return res.status(500).json({ error: 'Errore interno del server' });
+    } else {
+      console.log("[Chatbot] GROQ_API_KEY non configurata. Uso assistente locale di cortesia.");
+      reply = generateFallbackReply(userMessage, userName);
     }
+
+    // Salva nel file JSON della sessione chat per l'Admin
+    try {
+      let chatsData = {};
+      if (fs.existsSync(CHATS_FILE)) {
+        try { chatsData = JSON.parse(fs.readFileSync(CHATS_FILE, 'utf8')); } catch(e) {}
+      }
+      if (!chatsData[sessionId]) {
+        chatsData[sessionId] = {
+          sessionId,
+          userName,
+          startTime: new Date().toISOString(),
+          messages: []
+        };
+      }
+      chatsData[sessionId].messages.push({ sender: 'user', text: userMessage, timestamp: new Date().toISOString() });
+      chatsData[sessionId].messages.push({ sender: 'bot', text: reply, timestamp: new Date().toISOString() });
+      fs.writeFileSync(CHATS_FILE, JSON.stringify(chatsData, null, 2));
+    } catch (saveErr) {
+      console.error("[Chatbot] Errore salvataggio chat:", saveErr);
+    }
+
+    return res.json({ reply, success: true });
   }
   if (action === 'getChats') {
     if (fs.existsSync(CHATS_FILE)) {
@@ -481,14 +566,22 @@ Regole per te:
   if (action === 'clearAnalyticsHistory') return handleClearHistory(req, res);
   if (action === 'getConfig') {
     if (fs.existsSync(CONFIG_FILE)) {
-      return res.json(JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')));
+      try {
+        const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+        return res.json(cfg);
+      } catch (e) {}
     }
     return res.json({ pageMode: 'chisiamo' });
   }
   if (action === 'saveConfig') {
-    const config = req.body?.config || req.body;
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-    return res.json({ success: true });
+    const incoming = req.body?.config || req.body || {};
+    let existing = {};
+    if (fs.existsSync(CONFIG_FILE)) {
+      try { existing = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch(e) {}
+    }
+    const merged = { ...existing, ...incoming };
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(merged, null, 2));
+    return res.json({ success: true, config: merged });
   }
   res.status(404).json({ error: 'Azione non supportata su Node server' });
 });
