@@ -1,5 +1,27 @@
 [
   {
+    "sessionId": "sess_muzosj2h_2f8lq",
+    "visitorId": "vis_mtvtsgtj_koi53",
+    "ip": "::1",
+    "deviceType": "Desktop",
+    "os": "Windows 10/11",
+    "browser": "Chrome",
+    "screen": "1440x810",
+    "landingPage": "/admin",
+    "lastPage": "/admin",
+    "pageViews": 1,
+    "pages": [
+      "/admin"
+    ],
+    "referrer": "Accesso Diretto",
+    "language": "it",
+    "theme": "light",
+    "startTime": 1791473101,
+    "endTime": 1791473101,
+    "durationSeconds": 1,
+    "status": "online"
+  },
+  {
     "sessionId": "sess_muypjjwy_0xspu",
     "visitorId": "vis_muyog3lw_8zzb9",
     "ip": "::1",
@@ -18,8 +40,8 @@
     "theme": "dark",
     "startTime": 1791413832,
     "endTime": 1791414191,
-    "durationSeconds": 359,
-    "status": "online"
+    "durationSeconds": 1,
+    "status": "ended"
   },
   {
     "sessionId": "sess_muyook5t_xqfo5",

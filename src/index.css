@@ -15,11 +15,12 @@
 }
 
 :root[data-theme="light"] {
-    --bg-color: #000000;
-    --surface-color: #fffdf8;
-    --text-primary: #ffffff;
-    --text-secondary: #f7f3ea;
-    --navbar-bg: rgba(255, 255, 255, 0.678);
+    --primary-color: #d84500;
+    --bg-color: #faf7f2;
+    --surface-color: #ffffff;
+    --text-primary: #18181b;
+    --text-secondary: #52525b;
+    --navbar-bg: rgba(255, 255, 255, 0.9);
     --navbar-border: rgba(0, 0, 0, 0.08);
 }
 
