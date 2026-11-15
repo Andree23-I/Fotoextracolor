@@ -104,7 +104,7 @@ switch ($action) {
         if (file_exists($configFile)) {
             echo file_get_contents($configFile);
         } else {
-            echo json_encode(["pageMode" => "chisiamo"]);
+            echo json_encode(["pageMode" => "chisiamo", "ecommerceEnabled" => true]);
         }
         break;
 
@@ -659,6 +659,139 @@ Regole per te:
         file_put_contents($chatsFile, json_encode($chatsData, JSON_PRETTY_PRINT));
 
         echo json_encode(['reply' => $reply, 'success' => true]);
+        break;
+
+    // -------------------------------------------------------------
+    // E-COMMERCE PRODUCTS & ORDERS BACKEND STORAGE
+    // -------------------------------------------------------------
+    case 'getProducts':
+        $prodFile = __DIR__ . '/uploads/shop_products.json';
+        if (file_exists($prodFile)) {
+            $raw = file_get_contents($prodFile);
+            echo $raw ?: json_encode(["products" => []]);
+        } else {
+            echo json_encode(["products" => []]);
+        }
+        break;
+
+    case 'saveProducts':
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (isset($data['products'])) {
+            file_put_contents(__DIR__ . '/uploads/shop_products.json', json_encode($data['products'], JSON_PRETTY_PRINT));
+            echo json_encode(["success" => true]);
+        } else {
+            http_response_code(400);
+            echo json_encode(["error" => "Dati prodotti mancanti"]);
+        }
+        break;
+
+    case 'getOrders':
+        $ordersFile = __DIR__ . '/uploads/orders.json';
+        if (file_exists($ordersFile)) {
+            $raw = file_get_contents($ordersFile);
+            $orders = json_decode($raw, true) ?: [];
+            echo json_encode(["success" => true, "orders" => $orders]);
+        } else {
+            echo json_encode(["success" => true, "orders" => []]);
+        }
+        break;
+
+    case 'saveOrder':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $order = isset($data['order']) ? $data['order'] : $data;
+
+        if (!empty($order) && is_array($order)) {
+            $ordersFile = __DIR__ . '/uploads/orders.json';
+            $orders = [];
+            if (file_exists($ordersFile)) {
+                $orders = json_decode(file_get_contents($ordersFile), true) ?: [];
+            }
+
+            // Ensure unique ID and human-friendly Order Number
+            if (empty($order['id'])) {
+                $order['id'] = 'ORD-' . time() . '-' . rand(100, 999);
+            }
+            if (empty($order['orderNumber'])) {
+                $count = count($orders) + 1;
+                $order['orderNumber'] = '#FE-' . str_pad($count + 1000, 4, '0', STR_PAD_LEFT);
+            }
+            if (empty($order['createdAt'])) {
+                $order['createdAt'] = date('c');
+            }
+            if (empty($order['status'])) {
+                $order['status'] = 'pending'; // 'pending' | 'processing' | 'ready' | 'completed' | 'cancelled'
+            }
+
+            // Add to top of list
+            array_unshift($orders, $order);
+
+            file_put_contents($ordersFile, json_encode($orders, JSON_PRETTY_PRINT));
+            echo json_encode(["success" => true, "order" => $order]);
+        } else {
+            http_response_code(400);
+            echo json_encode(["error" => "Dati ordine non validi"]);
+        }
+        break;
+
+    case 'updateOrderStatus':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $orderId = isset($data['orderId']) ? $data['orderId'] : (isset($data['id']) ? $data['id'] : '');
+        $status = isset($data['status']) ? $data['status'] : '';
+        $adminNotes = isset($data['adminNotes']) ? $data['adminNotes'] : null;
+
+        if (!empty($orderId)) {
+            $ordersFile = __DIR__ . '/uploads/orders.json';
+            $orders = [];
+            if (file_exists($ordersFile)) {
+                $orders = json_decode(file_get_contents($ordersFile), true) ?: [];
+            }
+
+            $updated = false;
+            foreach ($orders as &$ord) {
+                if ($ord['id'] === $orderId) {
+                    if ($status) $ord['status'] = $status;
+                    if ($adminNotes !== null) $ord['adminNotes'] = $adminNotes;
+                    $ord['updatedAt'] = date('c');
+                    $updated = true;
+                    break;
+                }
+            }
+            unset($ord);
+
+            if ($updated) {
+                file_put_contents($ordersFile, json_encode($orders, JSON_PRETTY_PRINT));
+                echo json_encode(["success" => true]);
+            } else {
+                http_response_code(404);
+                echo json_encode(["error" => "Ordine non trovato"]);
+            }
+        } else {
+            http_response_code(400);
+            echo json_encode(["error" => "ID ordine mancante"]);
+        }
+        break;
+
+    case 'deleteOrder':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $orderId = isset($data['orderId']) ? $data['orderId'] : (isset($_GET['orderId']) ? $_GET['orderId'] : '');
+
+        if (!empty($orderId)) {
+            $ordersFile = __DIR__ . '/uploads/orders.json';
+            $orders = [];
+            if (file_exists($ordersFile)) {
+                $orders = json_decode(file_get_contents($ordersFile), true) ?: [];
+            }
+
+            $filtered = array_values(array_filter($orders, function($ord) use ($orderId) {
+                return $ord['id'] !== $orderId;
+            }));
+
+            file_put_contents($ordersFile, json_encode($filtered, JSON_PRETTY_PRINT));
+            echo json_encode(["success" => true]);
+        } else {
+            http_response_code(400);
+            echo json_encode(["error" => "ID ordine mancante"]);
+        }
         break;
 
 

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-
 import JSZip from "jszip";
+import { SvgCamera, SvgGallery } from "./ProductIcons";
 
 // Comprehensive world country dial codes list
 const COUNTRY_CODES = [
@@ -245,13 +245,16 @@ export default function PhotoUploadModal({ isOpen, onClose, language = "it" }) {
           {/* Riquadro Sinistro: Galleria Foto Caricate */}
           <div className="modal-left-gallery-panel">
             <div className="gallery-panel-header">
-              <span className="gallery-panel-title">📸 {t.previewTitle}</span>
+              <span className="gallery-panel-title">
+                <SvgCamera size={18} style={{ display: "inline-block", verticalAlign: "middle", marginRight: 6 }} />
+                {t.previewTitle}
+              </span>
               <span className="gallery-panel-badge">{files.length} foto</span>
             </div>
 
             {files.length === 0 ? (
               <div className="gallery-empty-state">
-                <span className="empty-icon">🖼️</span>
+                <span className="empty-icon"><SvgGallery size={36} /></span>
                 <p className="empty-text">{t.emptyGallery}</p>
               </div>
             ) : (
