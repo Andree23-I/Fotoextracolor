@@ -33,6 +33,11 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 // Serve the uploads folder as static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Health check / root status endpoint
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', message: 'Foto Extracolor Backend API is running' });
+});
+
 // Configurazione di Multer per il salvataggio dei file
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -564,6 +569,29 @@ Regole per te:
   if (action === 'trackLeave') return handleAnalyticsLeave(req, res);
   if (action === 'getAnalytics') return handleGetAnalytics(req, res);
   if (action === 'clearAnalyticsHistory') return handleClearHistory(req, res);
+  if (action === 'getProducts') {
+    const PRODUCTS_FILE = path.join(__dirname, 'products.json');
+    if (fs.existsSync(PRODUCTS_FILE)) {
+      try {
+        const prodData = JSON.parse(fs.readFileSync(PRODUCTS_FILE, 'utf8'));
+        return res.json({ success: true, products: prodData });
+      } catch (e) {
+        console.error("Errore lettura products.json:", e);
+      }
+    }
+    return res.json({ success: true, products: null });
+  }
+  if (action === 'saveProducts') {
+    const PRODUCTS_FILE = path.join(__dirname, 'products.json');
+    const incoming = req.body?.products || req.body || [];
+    try {
+      fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(incoming, null, 2));
+      return res.json({ success: true, count: incoming.length });
+    } catch (e) {
+      console.error("Errore salvataggio products.json:", e);
+      return res.status(500).json({ error: 'Errore salvataggio file prodotti' });
+    }
+  }
   if (action === 'getConfig') {
     if (fs.existsSync(CONFIG_FILE)) {
       try {

@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   Link,
+  Navigate,
   useLocation,
   useNavigate,
 } from "react-router-dom";
@@ -11,6 +12,7 @@ import "./index.css";
 import Lightbox from "./components/Lightbox.jsx";
 import Carousel from "./components/Carousel.jsx";
 import Chatbot from "./components/Chatbot.jsx";
+import EcommerceShop from "./components/EcommerceShop.jsx";
 import logo from "./assets/logo.jpeg";
 import heroPhoto from "./assets/scuro.jpeg";
 import lightHeroPhoto from "./assets/chiaro.jpeg";
@@ -135,6 +137,24 @@ function IconChiSiamo(props) {
   );
 }
 
+function IconShop(props) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <path d="M16 10a4 4 0 0 1-8 0"></path>
+    </svg>
+  );
+}
+
 function usePageMode() {
   const [mode, setMode] = useState(() => {
     if (typeof window === "undefined") return "chisiamo";
@@ -163,6 +183,41 @@ function usePageMode() {
   }, []);
 
   return mode;
+}
+
+function useEcommerceVisibility() {
+  const [enabled, setEnabled] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const stored = window.localStorage.getItem("fotoextracolor_ecommerce_enabled");
+    return stored === null ? true : stored === "true";
+  });
+
+  useEffect(() => {
+    const handleSync = () => {
+      const stored = window.localStorage.getItem("fotoextracolor_ecommerce_enabled");
+      setEnabled(stored === null ? true : stored === "true");
+    };
+
+    window.addEventListener("storage", handleSync);
+    window.addEventListener("fotoextracolor_ecommerce_toggle", handleSync);
+
+    fetch("/api.php?action=getConfig")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && typeof data.ecommerceEnabled !== "undefined") {
+          setEnabled(Boolean(data.ecommerceEnabled));
+          window.localStorage.setItem("fotoextracolor_ecommerce_enabled", String(data.ecommerceEnabled));
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      window.removeEventListener("storage", handleSync);
+      window.removeEventListener("fotoextracolor_ecommerce_toggle", handleSync);
+    };
+  }, []);
+
+  return enabled;
 }
 
 function IconContact(props) {
@@ -283,6 +338,7 @@ const translations = {
       servizi: "Servizi",
       chisiamo: "Chi Siamo",
       portfolio: "Portfolio",
+      shop: "Shop",
       contatti: "Contatti",
       language: "Lingua",
       dark: "Scuro",
@@ -388,6 +444,7 @@ const translations = {
       servizi: "Services",
       chisiamo: "About Us",
       portfolio: "Portfolio",
+      shop: "Shop",
       contatti: "Contact",
       language: "Language",
       dark: "Dark",
@@ -565,7 +622,7 @@ function GoogleReviewsWidget({ className = "", content }) {
 
 import PhotoUploadModal from "./components/PhotoUploadModal.jsx";
 
-function HeaderTray({ language, setLanguage, theme, toggleTheme, content }) {
+function HeaderTray({ language, setLanguage, theme, toggleTheme, content, cartCount, onOpenCart, isEcommerceEnabled }) {
   const [clock, setClock] = useState(new Date());
 
   useEffect(() => {
@@ -606,6 +663,22 @@ function HeaderTray({ language, setLanguage, theme, toggleTheme, content }) {
         >
           <span>{theme === "dark" ? "☀︎" : "☾"}</span>
         </button>
+        {isEcommerceEnabled && (
+          <button
+            type="button"
+            className={`header-cart-btn ${cartCount > 0 ? "has-items" : ""}`}
+            onClick={onOpenCart}
+            aria-label={language === "it" ? "Carrello" : "Cart"}
+            title={language === "it" ? `Carrello (${cartCount} articoli)` : `Cart (${cartCount} items)`}
+          >
+            <svg className="header-cart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="8" cy="21" r="1.5"></circle>
+              <circle cx="19" cy="21" r="1.5"></circle>
+              <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path>
+            </svg>
+            {cartCount > 0 && <span className="header-cart-badge">{cartCount}</span>}
+          </button>
+        )}
       </div>
       <div className="tray-clock">
         <div className="clock-time">
@@ -624,6 +697,43 @@ function TopHeaderBar({ language, setLanguage, theme, toggleTheme, content, onOp
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pageMode = usePageMode();
+  const isEcommerceEnabled = useEcommerceVisibility();
+
+  const [cartCount, setCartCount] = useState(() => {
+    try {
+      const raw = localStorage.getItem("fotoextracolor_shop_cart");
+      const items = raw ? JSON.parse(raw) : [];
+      return Array.isArray(items) ? items.reduce((acc, it) => acc + (it.quantity || 1), 0) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  useEffect(() => {
+    const updateCartCount = () => {
+      try {
+        const raw = localStorage.getItem("fotoextracolor_shop_cart");
+        const items = raw ? JSON.parse(raw) : [];
+        setCartCount(Array.isArray(items) ? items.reduce((acc, it) => acc + (it.quantity || 1), 0) : 0);
+      } catch {
+        setCartCount(0);
+      }
+    };
+    window.addEventListener("cart-updated", updateCartCount);
+    window.addEventListener("storage", updateCartCount);
+    return () => {
+      window.removeEventListener("cart-updated", updateCartCount);
+      window.removeEventListener("storage", updateCartCount);
+    };
+  }, []);
+
+  const handleOpenCart = () => {
+    if (location.pathname === "/shop") {
+      window.dispatchEvent(new CustomEvent("open-cart"));
+    } else {
+      navigate("/shop?openCart=true");
+    }
+  };
 
   const dynamicMenuItem = pageMode === "portfolio"
     ? { id: "/portfolio", label: content.nav.portfolio, icon: IconPortfolio }
@@ -633,6 +743,7 @@ function TopHeaderBar({ language, setLanguage, theme, toggleTheme, content, onOp
     { id: "/", label: content.nav.home, icon: IconHome },
     { id: "/servizi", label: content.nav.servizi, icon: IconServices },
     dynamicMenuItem,
+    ...(isEcommerceEnabled ? [{ id: "/shop", label: content.nav.shop, icon: IconShop }] : []),
     { id: "/#contatti", label: content.nav.contatti, icon: IconContact },
   ];
 
@@ -669,6 +780,9 @@ function TopHeaderBar({ language, setLanguage, theme, toggleTheme, content, onOp
           theme={theme}
           toggleTheme={toggleTheme}
           content={content}
+          cartCount={cartCount}
+          onOpenCart={handleOpenCart}
+          isEcommerceEnabled={isEcommerceEnabled}
         />
 
         {/* Mobile Hamburger Menu Toggle Button */}
@@ -719,6 +833,30 @@ function TopHeaderBar({ language, setLanguage, theme, toggleTheme, content, onOp
                   </button>
                 );
               })}
+
+              {/* Mobile Direct Cart Action */}
+              {isEcommerceEnabled && (
+                <button
+                  type="button"
+                  className={`mobile-nav-item mobile-nav-cart-item ${location.pathname === "/shop" ? "active" : ""}`}
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleOpenCart();
+                  }}
+                >
+                  <span className="mobile-nav-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+                      <circle cx="8" cy="21" r="1.5"></circle>
+                      <circle cx="19" cy="21" r="1.5"></circle>
+                      <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path>
+                    </svg>
+                  </span>
+                  <span className="mobile-nav-label">
+                    {language === "it" ? "Carrello" : "Shopping Cart"}
+                    {cartCount > 0 ? ` (${cartCount})` : ""}
+                  </span>
+                </button>
+              )}
             </div>
           </nav>
         </div>
@@ -732,6 +870,7 @@ function WindowsTaskbar({ content }) {
   const navigate = useNavigate();
   const location = useLocation();
   const pageMode = usePageMode();
+  const isEcommerceEnabled = useEcommerceVisibility();
 
   const dynamicMenuItem = pageMode === "portfolio"
     ? { id: "/portfolio", label: content.nav.portfolio }
@@ -741,6 +880,7 @@ function WindowsTaskbar({ content }) {
     { id: "/", label: content.nav.home },
     { id: "/servizi", label: content.nav.servizi },
     dynamicMenuItem,
+    ...(isEcommerceEnabled ? [{ id: "/shop", label: content.nav.shop }] : []),
     { id: "/#contatti", label: content.nav.contatti },
   ];
 
@@ -779,7 +919,7 @@ function getPageTransitionMeta(pathname, hash, content) {
   pathname = pathname.replace(/\/+$/, "") || "/";
 
   if (hash === "#contatti") {
-    return { label: content.nav.contatti, index: 3 };
+    return { label: content.nav.contatti, index: 4 };
   }
 
   if (pathname === "/servizi") {
@@ -792,6 +932,10 @@ function getPageTransitionMeta(pathname, hash, content) {
 
   if (pathname === "/portfolio") {
     return { label: content.nav.portfolio, index: 2 };
+  }
+
+  if (pathname === "/shop") {
+    return { label: content.nav.shop, index: 3 };
   }
 
   return { label: content.nav.home, index: 0 };
@@ -913,6 +1057,7 @@ function ScrollToHash() {
 
 function RoutedContent({ content, language, theme, onOpenPhotoModal }) {
   const location = useLocation();
+  const isEcommerceEnabled = useEcommerceVisibility();
 
   return (
     <main className="page-content route-page" key={location.key}>
@@ -921,6 +1066,16 @@ function RoutedContent({ content, language, theme, onOpenPhotoModal }) {
         <Route path="/servizi" element={<Servizi content={content} language={language} />} />
         <Route path="/chisiamo" element={<ChiSiamo content={content} language={language} />} />
         <Route path="/portfolio" element={<Portfolio content={content} language={language} />} />
+        <Route 
+          path="/shop" 
+          element={
+            isEcommerceEnabled ? (
+              <EcommerceShop content={content} language={language} theme={theme} />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          } 
+        />
         <Route 
           path="/admin" 
           element={

@@ -32,7 +32,16 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/api.php": "http://localhost:3001"
+      "/api.php": {
+        target: "https://fttest.onrender.com",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/uploads": {
+        target: "https://fttest.onrender.com",
+        changeOrigin: true,
+        secure: false,
+      }
     }
   },
   plugins: [react(), createStaticRoutePages()],

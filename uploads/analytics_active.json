@@ -1,21 +1,21 @@
 {
-  "sess_muypjjwy_0xspu": {
-    "sessionId": "sess_muypjjwy_0xspu",
-    "visitorId": "vis_muyog3lw_8zzb9",
+  "sess_muzosj2h_2f8lq": {
+    "sessionId": "sess_muzosj2h_2f8lq",
+    "visitorId": "vis_mtvtsgtj_koi53",
     "ip": "::1",
     "deviceType": "Desktop",
     "os": "Windows 10/11",
-    "browser": "Edge",
-    "screen": "1920x1080",
-    "currentPage": "/",
+    "browser": "Chrome",
+    "screen": "1440x810",
+    "currentPage": "/admin",
     "referrer": "Accesso Diretto",
     "language": "it",
-    "theme": "dark",
-    "firstSeen": 1791414191,
-    "lastPing": 1791414191,
+    "theme": "light",
+    "firstSeen": 1791473101,
+    "lastPing": 1791473101,
     "pageViews": 1,
     "pages": [
-      "/"
+      "/admin"
     ]
   }
 }
