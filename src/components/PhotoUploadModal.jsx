@@ -373,44 +373,43 @@ export default function PhotoUploadModal({ isOpen, onClose, language = "it" }) {
                 </div>
               </div>
 
-              {/* Drag & Drop Upload Zone - Accessible for Mobile & Desktop */}
+              {/* Drag & Drop Upload Zone - 100% Reliable for Mobile Touch & Desktop Drag */}
               <div className="form-group">
                 <label className="form-label">Caricamento Foto *</label>
-                <label
-                  htmlFor="photo-modal-file-input"
+                <div
                   className={`dropzone ${isDragOver ? "drag-over" : ""}`}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
-                  <input
-                    id="photo-modal-file-input"
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept="image/*,.heic,.heif,.jpg,.jpeg,.png,.webp,.gif,.bmp"
-                    className="photo-file-input-native"
-                    onChange={(e) => {
-                      const selected = e.target.files ? Array.from(e.target.files) : [];
-                      e.target.value = "";
-                      if (selected.length > 0) {
-                        handleFileSelect(selected);
-                      }
-                    }}
-                  />
-                  <div className="dropzone-compact">
-                    <span className="dropzone-icon">📷</span>
-                    <div>
-                      <p className="dropzone-text">{t.dragText}</p>
-                      <span className="dropzone-sub">{t.dragSub}</span>
+                  <div className="mobile-upload-btn-wrapper">
+                    <div className="dropzone-compact" style={{ pointerEvents: "none" }}>
+                      <span className="dropzone-icon">📷</span>
+                      <div>
+                        <p className="dropzone-text">{t.dragText}</p>
+                        <span className="dropzone-sub">{t.dragSub}</span>
+                      </div>
                     </div>
+                    <div className="dropzone-mobile-action" style={{ marginTop: 8, pointerEvents: "none" }}>
+                      <span className="dropzone-mobile-btn">
+                        📸 {files.length > 0 ? "Aggiungi altre foto dal telefono" : "Scegli foto da Galleria / Fotocamera"}
+                      </span>
+                    </div>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      className="mobile-upload-real-input"
+                      onChange={(e) => {
+                        const selected = e.target.files ? Array.from(e.target.files) : [];
+                        e.target.value = "";
+                        if (selected.length > 0) {
+                          handleFileSelect(selected);
+                        }
+                      }}
+                    />
                   </div>
-                  <div className="dropzone-mobile-action" style={{ marginTop: 8 }}>
-                    <span className="dropzone-mobile-btn">
-                      📸 {files.length > 0 ? "Aggiungi altre foto dal telefono" : "Scegli foto da Galleria / Fotocamera"}
-                    </span>
-                  </div>
-                </label>
+                </div>
               </div>
 
               {/* Status Alert Message */}

@@ -1350,32 +1350,32 @@ function isImageFile(file) {
   return false;
 }
 
-function createOptimizedThumbnail(file, maxDimension = 800) {
+function createOptimizedThumbnail(file, maxDimension = 700) {
   return new Promise((resolve) => {
-    if (typeof URL === "undefined" || typeof document === "undefined") {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(file);
-      return;
+    if (typeof URL === "undefined" || !file) {
+      return resolve(null);
     }
 
     const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
+    const isHeic = /\.(heic|heif)$/i.test(file.name || "") || (file.type && file.type.includes("heic"));
 
-    // 3-second safety timeout so it never hangs if decoding fails
+    // Quick safety timeout so mobile never hangs
     const timer = setTimeout(() => {
-      resolve(objectUrl);
-    }, 3000);
+      if (isHeic) {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="300" height="200" rx="12" fill="#252530" stroke="#d4af37" stroke-width="2"/><text x="50%" y="45%" text-anchor="middle" font-size="32">📱</text><text x="50%" y="68%" text-anchor="middle" fill="#d4af37" font-family="sans-serif" font-weight="bold" font-size="14">Foto iPhone (HEIC)</text><text x="50%" y="84%" text-anchor="middle" fill="#aaa" font-family="sans-serif" font-size="11">Risoluzione originale pronta</text></svg>`;
+        resolve(`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`);
+      } else {
+        resolve(objectUrl);
+      }
+    }, 2000);
 
+    const img = new Image();
     img.onload = () => {
       clearTimeout(timer);
       try {
         let width = img.naturalWidth || img.width;
         let height = img.naturalHeight || img.height;
-        if (!width || !height) {
-          return resolve(objectUrl);
-        }
+        if (!width || !height) return resolve(objectUrl);
 
         if (width > maxDimension || height > maxDimension) {
           if (width > height) {
@@ -1392,20 +1392,21 @@ function createOptimizedThumbnail(file, maxDimension = 800) {
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, width, height);
-
-        const thumbnail = canvas.toDataURL("image/jpeg", 0.82);
-        resolve(thumbnail);
-      } catch (err) {
+        const thumb = canvas.toDataURL("image/jpeg", 0.75);
+        resolve(thumb);
+      } catch {
         resolve(objectUrl);
       }
     };
 
     img.onerror = () => {
       clearTimeout(timer);
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
-      reader.onerror = () => resolve(objectUrl);
-      reader.readAsDataURL(file);
+      if (isHeic) {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="300" height="200" rx="12" fill="#252530" stroke="#d4af37" stroke-width="2"/><text x="50%" y="45%" text-anchor="middle" font-size="32">📱</text><text x="50%" y="68%" text-anchor="middle" fill="#d4af37" font-family="sans-serif" font-weight="bold" font-size="14">Foto iPhone (HEIC)</text><text x="50%" y="84%" text-anchor="middle" fill="#aaa" font-family="sans-serif" font-size="11">Risoluzione originale pronta</text></svg>`;
+        resolve(`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`);
+      } else {
+        resolve(objectUrl);
+      }
     };
 
     img.src = objectUrl;
@@ -1414,6 +1415,7 @@ function createOptimizedThumbnail(file, maxDimension = 800) {
 
 // -------------------------------------------------------------
 // PRODUCT CUSTOMIZER & PHOTO UPLOAD MODAL COMPONENT
+// Dual Experience: Dedicated Mobile Sheet for phones & 2-column modal for PC
 // -------------------------------------------------------------
 function ProductCustomizerModal({ product, language, onClose, onConfirm }) {
   const isPaperProduct = product.category === "prints" || product.category === "photobooks";
@@ -1429,10 +1431,23 @@ function ProductCustomizerModal({ product, language, onClose, onConfirm }) {
   const [processingCount, setProcessingCount] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
-  const fileInputRef = useRef(null);
+
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth <= 768;
+    }
+    return false;
+  });
 
   useEffect(() => {
-    // Blocco dello scroll della pagina in background
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -1469,7 +1484,7 @@ function ProductCustomizerModal({ product, language, onClose, onConfirm }) {
           const objectUrl = URL.createObjectURL(file);
           let thumbnail = null;
           try {
-            thumbnail = await createOptimizedThumbnail(file, 800);
+            thumbnail = await createOptimizedThumbnail(file, 700);
           } catch {
             thumbnail = objectUrl;
           }
@@ -1524,6 +1539,364 @@ function ProductCustomizerModal({ product, language, onClose, onConfirm }) {
   const safePhotoIndex = photos.length > 0 ? Math.min(selectedPhotoIndex, photos.length - 1) : 0;
   const activePhoto = photos[safePhotoIndex]?.dataUrl || photos[safePhotoIndex]?.previewUrl || null;
 
+  // ==============================================================
+  // DEDICATED MOBILE-ONLY MODAL (FOR PHONES & TABLETS <= 768px)
+  // ==============================================================
+  if (isMobile) {
+    return createPortal(
+      <div className="mobile-customizer-overlay" onClick={onClose}>
+        <div className="mobile-customizer-sheet" onClick={(e) => e.stopPropagation()}>
+          {/* Top Drag Handle */}
+          <div className="mobile-customizer-handle-bar">
+            <div className="mobile-drag-pill" />
+          </div>
+
+          {/* Header */}
+          <div className="mobile-customizer-header">
+            <div className="mobile-header-info">
+              <span className="mobile-customizer-kicker">
+                {getCategoryLabel(product.category, language)}
+              </span>
+              <h2 className="mobile-customizer-title">{title}</h2>
+            </div>
+            <button
+              type="button"
+              className="mobile-modal-close-btn"
+              onClick={onClose}
+              aria-label="Chiudi finestra"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Scrollable Body */}
+          <div className="mobile-customizer-scroll-body">
+            {/* STEP 1: CARICA LE TUE FOTO (PRIMARY HERO ACTION) */}
+            <div className="mobile-section-card photo-upload-card">
+              <div className="mobile-section-title-row">
+                <span className="mobile-section-title">
+                  📸 {language === "it" ? "Le Tue Foto" : "Your Photos"}
+                </span>
+                {photos.length > 0 && (
+                  <button
+                    type="button"
+                    className="mobile-clear-btn"
+                    onClick={clearAllPhotos}
+                  >
+                    {language === "it" ? "✕ Svuota tutte" : "✕ Clear all"}
+                  </button>
+                )}
+              </div>
+
+              {/* Big Touch-Friendly Button with Native File Input Overlay */}
+              <div className="mobile-upload-btn-wrapper">
+                <div className="mobile-upload-btn-visual">
+                  <div className="mob-icon-circle">
+                    <IconUpload style={{ width: 28, height: 28 }} />
+                  </div>
+                  <div className="mob-text-col">
+                    <strong className="mob-btn-main-text">
+                      {photos.length > 0
+                        ? (language === "it" ? "➕ Aggiungi altre foto dal telefono" : "➕ Add more photos from phone")
+                        : (language === "it" ? "Tocca qui per scegliere le foto" : "Tap here to choose photos")}
+                    </strong>
+                    <span className="mob-btn-sub-text">
+                      {language === "it"
+                        ? "Galleria, Rullino o Scatta Foto con la Fotocamera"
+                        : "Gallery, Camera Roll or Take Photo"}
+                    </span>
+                  </div>
+                </div>
+                {/* Physical native file input over the entire card */}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="mobile-upload-real-input"
+                  onChange={(e) => {
+                    const sel = e.target.files ? Array.from(e.target.files) : [];
+                    e.target.value = "";
+                    if (sel.length > 0) handleFiles(sel);
+                  }}
+                />
+              </div>
+
+              {isProcessingPhotos && (
+                <div className="mobile-processing-pill">
+                  <span className="spinner-rotate">⏳</span>
+                  <span>
+                    {language === "it"
+                      ? `Caricamento di ${processingCount} foto in corso...`
+                      : `Loading ${processingCount} photos...`}
+                  </span>
+                </div>
+              )}
+
+              {/* Gallery of Uploaded Photos */}
+              {photos.length > 0 && (
+                <div className="mobile-photos-gallery-section">
+                  <div className="mobile-photos-count-badge">
+                    <span>
+                      {language === "it"
+                        ? `✅ ${photos.length} foto caricate per questo articolo`
+                        : `✅ ${photos.length} photos ready for print`}
+                    </span>
+                  </div>
+
+                  <div className="mobile-thumbnails-scroll">
+                    {photos.map((p, idx) => (
+                      <div
+                        key={idx}
+                        className={`mobile-thumb-card ${idx === safePhotoIndex ? "selected" : ""}`}
+                        onClick={() => setSelectedPhotoIndex(idx)}
+                      >
+                        <img src={p.dataUrl} alt={p.name} />
+                        <span className="mobile-thumb-number">#{idx + 1}</span>
+                        <button
+                          type="button"
+                          className="mobile-thumb-del"
+                          onClick={(e) => removePhoto(idx, e)}
+                          title="Rimuovi foto"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Quick Add Extra Button */}
+                    <div className="mobile-thumb-add-card">
+                      <div className="add-card-content">
+                        <span style={{ fontSize: "1.4rem" }}>➕</span>
+                        <small>{language === "it" ? "Aggiungi" : "Add"}</small>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="mobile-upload-real-input"
+                        onChange={(e) => {
+                          const sel = e.target.files ? Array.from(e.target.files) : [];
+                          e.target.value = "";
+                          if (sel.length > 0) handleFiles(sel);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Compact Live Mockup */}
+                  <div className="mobile-mockup-compact-container">
+                    <MockupPreviewStage
+                      mockupType={product.mockupType}
+                      photoUrl={activePhoto}
+                      customText={customText}
+                    />
+                    <div className="mobile-mockup-label">
+                      <span>{language === "it" ? `Anteprima Foto #${safePhotoIndex + 1}` : `Preview Photo #${safePhotoIndex + 1}`}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* STEP 2: SCEGLI FORMATO */}
+            {product.formats.length > 0 && (
+              <div className="mobile-section-card">
+                <div className="mobile-section-title-row">
+                  <span className="mobile-section-title">
+                    📐 {language === "it" ? "Seleziona Formato" : "Select Format"}
+                  </span>
+                  {isCustomFormat && (
+                    <span className="mobile-custom-tag">{language === "it" ? "Personalizzato" : "Custom"}</span>
+                  )}
+                </div>
+
+                <div className="mobile-formats-grid">
+                  {product.formats.map((fmt, i) => {
+                    const isSelected = !isCustomFormat && selectedFormat.name === fmt.name;
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        className={`mobile-fmt-chip ${isSelected ? "active" : ""}`}
+                        onClick={() => {
+                          setIsCustomFormat(false);
+                          setCustomFormatText("");
+                          setSelectedFormat(fmt);
+                        }}
+                      >
+                        <strong className="chip-name">{fmt.name}</strong>
+                        <span className="chip-price">
+                          {fmt.extra === 0 ? "Base" : `+€${fmt.extra.toFixed(2)}`}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Scaglioni di prezzo se 10x15 o 13x18 */}
+                {selectedFormat?.name?.includes("10x15") && (
+                  <div className="mobile-discount-tier-box">
+                    <span className="discount-tier-title">🏷️ Listino Prezzi Foto 10x15:</span>
+                    <div className="discount-pills">
+                      <span className={effectiveQuantity <= 10 ? "active" : ""}>1-10: <strong>0.50€</strong></span>
+                      <span className={effectiveQuantity >= 11 && effectiveQuantity <= 30 ? "active" : ""}>11-30: <strong>0.35€</strong></span>
+                      <span className={effectiveQuantity >= 31 ? "active" : ""}>31+: <strong>0.25€</strong></span>
+                    </div>
+                  </div>
+                )}
+                {selectedFormat?.name?.includes("13x18") && (
+                  <div className="mobile-discount-tier-box">
+                    <span className="discount-tier-title">🏷️ Listino Prezzi Foto 13x18:</span>
+                    <div className="discount-pills">
+                      <span className={effectiveQuantity <= 10 ? "active" : ""}>1-10: <strong>0.80€</strong></span>
+                      <span className={effectiveQuantity >= 11 && effectiveQuantity <= 30 ? "active" : ""}>11-30: <strong>0.50€</strong></span>
+                      <span className={effectiveQuantity >= 31 ? "active" : ""}>31+: <strong>0.35€</strong></span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* STEP 3: TIPO DI CARTA (se stampe/fotolibri) */}
+            {isPaperProduct && (
+              <div className="mobile-section-card">
+                <span className="mobile-section-title">
+                  ✨ {language === "it" ? "Tipo di Carta" : "Paper Finish"}
+                </span>
+                <div className="mobile-finish-grid">
+                  {["Lucida", "Satinata"].map((fn, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      className={`mobile-finish-chip ${selectedFinish === fn ? "active" : ""}`}
+                      onClick={() => setSelectedFinish(fn)}
+                    >
+                      {fn === "Lucida" ? "✨ Lucida (Brillante)" : "🎨 Satinata (Opaca Soft)"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* STEP 4: QUANTITÀ */}
+            <div className="mobile-section-card">
+              <span className="mobile-section-title">
+                🔢 {language === "it" ? "Quantità Stampe" : "Quantity"}
+              </span>
+
+              {photos.length > 0 ? (
+                <div className="mobile-qty-stepper-box">
+                  <div className="mobile-qty-desc">
+                    <strong>{photos.length * copiesPerPhoto} stampe in totale</strong>
+                    <small>
+                      {copiesPerPhoto === 1
+                        ? (language === "it" ? `(1 copia per ciascuna foto)` : `(1 copy each)`)
+                        : (language === "it" ? `(${copiesPerPhoto} copie per ciascuna foto)` : `(${copiesPerPhoto} copies each)`)}
+                    </small>
+                  </div>
+                  <div className="mobile-stepper-buttons">
+                    <button
+                      type="button"
+                      className="mob-step-btn"
+                      onClick={() => setCopiesPerPhoto((c) => Math.max(1, c - 1))}
+                      disabled={copiesPerPhoto <= 1}
+                    >
+                      -
+                    </button>
+                    <span className="mob-step-val">{copiesPerPhoto}x</span>
+                    <button
+                      type="button"
+                      className="mob-step-btn"
+                      onClick={() => setCopiesPerPhoto((c) => c + 1)}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mobile-qty-stepper-box">
+                  <span className="mobile-qty-desc">
+                    <strong>{manualQuantity} pezzi</strong>
+                  </span>
+                  <div className="mobile-stepper-buttons">
+                    <button
+                      type="button"
+                      className="mob-step-btn"
+                      onClick={() => setManualQuantity((q) => Math.max(1, q - 1))}
+                      disabled={manualQuantity <= 1}
+                    >
+                      -
+                    </button>
+                    <span className="mob-step-val">{manualQuantity}</span>
+                    <button
+                      type="button"
+                      className="mob-step-btn"
+                      onClick={() => setManualQuantity((q) => q + 1)}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* STEP 5: DEDICA / NOTE (Opzionale) */}
+            <div className="mobile-section-card">
+              <span className="mobile-section-title">
+                📝 {language === "it" ? "Dedica o Istruzioni (Opzionale)" : "Dedication or Notes"}
+              </span>
+              <input
+                type="text"
+                className="mobile-notes-input"
+                placeholder={language === "it" ? "es. Dedica sul retro, centratura..." : "e.g. Dedication, layout..."}
+                value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
+              />
+            </div>
+
+            {/* Bottom spacing for fixed footer */}
+            <div style={{ height: 85 }} />
+          </div>
+
+          {/* Fixed Bottom Action Bar */}
+          <div className="mobile-customizer-sticky-footer">
+            <div className="mob-footer-price-info">
+              <span className="mob-footer-price-sub">
+                {effectiveQuantity} {effectiveQuantity === 1 ? "foto/art." : "foto/stampe"} × €{unitPrice.toFixed(2)}
+              </span>
+              <strong className="mob-footer-price-total">€{currentPrice.toFixed(2)}</strong>
+            </div>
+
+            <button
+              type="button"
+              className="mob-footer-confirm-btn"
+              onClick={() => {
+                onConfirm({
+                  format: selectedFormat,
+                  finish: isPaperProduct ? selectedFinish : "",
+                  notes: customText,
+                  quantity: effectiveQuantity,
+                  uploadedPhotos: photos
+                });
+              }}
+            >
+              <IconCheck style={{ width: 20, height: 20 }} />
+              <span>
+                {photos.length === 0
+                  ? (language === "it" ? "Aggiungi al Carrello" : "Add to Cart")
+                  : (language === "it" ? `Conferma (${effectiveQuantity})` : `Confirm (${effectiveQuantity})`)}
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  // ==============================================================
+  // DESKTOP MODAL (FOR PC & LAPTOPS > 768px)
+  // ==============================================================
   return createPortal(
     <div className="customizer-modal-overlay" onClick={onClose}>
       <div className="customizer-modal-content" onClick={(e) => e.stopPropagation()}>
@@ -1594,9 +1967,8 @@ function ProductCustomizerModal({ product, language, onClose, onConfirm }) {
               </div>
             )}
 
-            {/* Upload Dropzone - Optimized for Mobile Tap & Desktop Drag */}
-            <label
-              htmlFor="eshop-customizer-file-input"
+            {/* Upload Dropzone with Native File Input Overlay */}
+            <div
               className={`photo-dropzone ${isDragging ? "dragging" : ""} ${photos.length > 0 ? "has-photo" : ""}`}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -1605,42 +1977,31 @@ function ProductCustomizerModal({ product, language, onClose, onConfirm }) {
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
             >
-              <input
-                id="eshop-customizer-file-input"
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,.heic,.heif,.jpg,.jpeg,.png,.webp,.gif,.bmp"
-                multiple
-                className="photo-file-input-native"
-                onChange={(e) => {
-                  const selected = e.target.files ? Array.from(e.target.files) : [];
-                  e.target.value = "";
-                  if (selected.length > 0) {
-                    handleFiles(selected);
-                  }
-                }}
-              />
-              <IconUpload className="dropzone-icon" />
-              <div className="dropzone-text">
-                <strong>
-                  {photos.length > 0
-                    ? (language === "it" ? "Aggiungi altre foto o trascinale qui" : "Add more photos or drag here")
-                    : (language === "it" ? "Tocca qui per caricare le tue foto" : "Tap here to choose your photos")}
-                </strong>
-                <span>
-                  {language === "it"
-                    ? "Formati supportati: JPG, PNG, WEBP, HEIC (iPhone & Android)"
-                    : "Supported formats: JPG, PNG, WEBP, HEIC (iPhone & Android)"}
-                </span>
-              </div>
-
-              {/* High-visibility thumb-friendly button for mobile devices */}
-              <div className="dropzone-mobile-action">
-                <span className="dropzone-mobile-btn">
-                  📸 {photos.length > 0
-                    ? (language === "it" ? "Aggiungi altre foto dal telefono" : "Add more photos from phone")
-                    : (language === "it" ? "Scegli foto da Galleria / Telefono" : "Choose photos from Gallery / Phone")}
-                </span>
+              <div className="mobile-upload-btn-wrapper">
+                <div className="dropzone-text" style={{ pointerEvents: "none" }}>
+                  <IconUpload className="dropzone-icon" />
+                  <strong>
+                    {photos.length > 0
+                      ? (language === "it" ? "Aggiungi altre foto o trascinale qui" : "Add more photos or drag here")
+                      : (language === "it" ? "Trascina qui la tua foto o clicca per caricarla" : "Drag and drop your photo or click to browse")}
+                  </strong>
+                  <span>
+                    {language === "it"
+                      ? "Formati supportati: JPG, PNG, WEBP, HEIC"
+                      : "Supported formats: JPG, PNG, WEBP, HEIC"}
+                  </span>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="mobile-upload-real-input"
+                  onChange={(e) => {
+                    const sel = e.target.files ? Array.from(e.target.files) : [];
+                    e.target.value = "";
+                    if (sel.length > 0) handleFiles(sel);
+                  }}
+                />
               </div>
 
               {isProcessingPhotos && (
@@ -1648,12 +2009,12 @@ function ProductCustomizerModal({ product, language, onClose, onConfirm }) {
                   <span className="processing-spinner">⏳</span>
                   <span>
                     {language === "it"
-                      ? `Caricamento ed elaborazione di ${processingCount} foto in corso...`
-                      : `Loading and processing ${processingCount} photos...`}
+                      ? `Caricamento di ${processingCount} foto in corso...`
+                      : `Loading ${processingCount} photos...`}
                   </span>
                 </div>
               )}
-            </label>
+            </div>
           </div>
 
           {/* Right Column: Customization Controls */}
@@ -1829,7 +2190,7 @@ function ProductCustomizerModal({ product, language, onClose, onConfirm }) {
               />
             </div>
 
-            {/* Quantity Selector - Basata sul numero di foto caricate */}
+            {/* Quantity Selector */}
             <div className="control-section qty-section">
               <div className="qty-control-header">
                 <label className="control-label">
