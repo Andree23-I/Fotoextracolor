@@ -4229,6 +4229,21 @@ body.nav-open {
     flex: 1;
 }
 
+/* Native hidden file input for cross-platform accessibility */
+.photo-file-input-native {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
 /* Compact Dropzone */
 .dropzone {
     border: 2px dashed rgba(255, 215, 0, 0.4);
@@ -4238,6 +4253,10 @@ body.nav-open {
     text-align: center;
     cursor: pointer;
     transition: all 0.3s ease;
+    display: block;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
 }
 
 :root[data-theme="light"] .dropzone {

@@ -45,6 +45,17 @@ const COUNTRY_CODES = [
   { code: "+972", flag: "🇮🇱", name: "Israele" },
 ];
 
+const isImageFile = (file) => {
+  if (!file) return false;
+  if (file.type && file.type.startsWith("image/")) return true;
+  const name = file.name || "";
+  const ext = name.split(".").pop().toLowerCase();
+  const validExtensions = ["jpg", "jpeg", "png", "webp", "heic", "heif", "gif", "bmp", "avif", "tiff", "dng"];
+  if (validExtensions.includes(ext)) return true;
+  if (!file.type && file.size > 0) return true;
+  return false;
+};
+
 export default function PhotoUploadModal({ isOpen, onClose, language = "it" }) {
   const [fullName, setFullName] = useState("");
   const [countryCode, setCountryCode] = useState("+39");
@@ -126,9 +137,9 @@ export default function PhotoUploadModal({ isOpen, onClose, language = "it" }) {
   const t = labels[language] || labels.it;
 
   const handleFileSelect = (selectedFiles) => {
-    const validFiles = Array.from(selectedFiles).filter((file) =>
-      file.type.startsWith("image/")
-    );
+    if (!selectedFiles) return;
+    const validFiles = Array.from(selectedFiles).filter(isImageFile);
+    if (validFiles.length === 0) return;
     setFiles((prev) => [...prev, ...validFiles]);
   };
 
@@ -362,23 +373,30 @@ export default function PhotoUploadModal({ isOpen, onClose, language = "it" }) {
                 </div>
               </div>
 
-              {/* Drag & Drop Upload Zone */}
+              {/* Drag & Drop Upload Zone - Accessible for Mobile & Desktop */}
               <div className="form-group">
                 <label className="form-label">Caricamento Foto *</label>
-                <div
+                <label
+                  htmlFor="photo-modal-file-input"
                   className={`dropzone ${isDragOver ? "drag-over" : ""}`}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
                 >
                   <input
+                    id="photo-modal-file-input"
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept="image/*"
-                    onChange={(e) => handleFileSelect(e.target.files)}
-                    style={{ display: "none" }}
+                    accept="image/*,.heic,.heif,.jpg,.jpeg,.png,.webp,.gif,.bmp"
+                    className="photo-file-input-native"
+                    onChange={(e) => {
+                      const selected = e.target.files ? Array.from(e.target.files) : [];
+                      e.target.value = "";
+                      if (selected.length > 0) {
+                        handleFileSelect(selected);
+                      }
+                    }}
                   />
                   <div className="dropzone-compact">
                     <span className="dropzone-icon">📷</span>
@@ -387,7 +405,12 @@ export default function PhotoUploadModal({ isOpen, onClose, language = "it" }) {
                       <span className="dropzone-sub">{t.dragSub}</span>
                     </div>
                   </div>
-                </div>
+                  <div className="dropzone-mobile-action" style={{ marginTop: 8 }}>
+                    <span className="dropzone-mobile-btn">
+                      📸 {files.length > 0 ? "Aggiungi altre foto dal telefono" : "Scegli foto da Galleria / Fotocamera"}
+                    </span>
+                  </div>
+                </label>
               </div>
 
               {/* Status Alert Message */}

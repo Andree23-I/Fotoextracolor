@@ -116,7 +116,21 @@ export default function EcommerceShop({ language }) {
       localStorage.setItem("fotoextracolor_shop_cart", JSON.stringify(cart));
       window.dispatchEvent(new CustomEvent("cart-updated", { detail: cart }));
     } catch (e) {
-      console.warn("Storage full or unavailable", e);
+      console.warn("Storage full, saving lightweight cart version:", e);
+      try {
+        const lightweightCart = cart.map(item => ({
+          ...item,
+          previewThumbnail: item.previewThumbnail ? (item.previewThumbnail.startsWith("blob:") ? null : item.previewThumbnail.slice(0, 2000)) : null,
+          uploadedPhotos: (item.uploadedPhotos || []).map(p => ({
+            name: p.name,
+            size: p.size
+          }))
+        }));
+        localStorage.setItem("fotoextracolor_shop_cart", JSON.stringify(lightweightCart));
+        window.dispatchEvent(new CustomEvent("cart-updated", { detail: cart }));
+      } catch (err2) {
+        console.warn("Could not save cart to localStorage:", err2);
+      }
     }
   }, [cart]);
 
@@ -1322,6 +1336,83 @@ function CardStackExperience({ products, language, onCustomize, onAddToCart }) {
 }
 
 // -------------------------------------------------------------
+// IMAGE HELPER FUNCTIONS FOR MOBILE & DESKTOP RELIABILITY
+// -------------------------------------------------------------
+function isImageFile(file) {
+  if (!file) return false;
+  if (file.type && file.type.startsWith("image/")) return true;
+  const name = file.name || "";
+  const ext = name.split(".").pop().toLowerCase();
+  const validExtensions = ["jpg", "jpeg", "png", "webp", "heic", "heif", "gif", "bmp", "avif", "tiff", "dng"];
+  if (validExtensions.includes(ext)) return true;
+  // Fallback for mobile camera roll where MIME type might be empty
+  if (!file.type && file.size > 0) return true;
+  return false;
+}
+
+function createOptimizedThumbnail(file, maxDimension = 800) {
+  return new Promise((resolve) => {
+    if (typeof URL === "undefined" || typeof document === "undefined") {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    // 3-second safety timeout so it never hangs if decoding fails
+    const timer = setTimeout(() => {
+      resolve(objectUrl);
+    }, 3000);
+
+    img.onload = () => {
+      clearTimeout(timer);
+      try {
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+        if (!width || !height) {
+          return resolve(objectUrl);
+        }
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const thumbnail = canvas.toDataURL("image/jpeg", 0.82);
+        resolve(thumbnail);
+      } catch (err) {
+        resolve(objectUrl);
+      }
+    };
+
+    img.onerror = () => {
+      clearTimeout(timer);
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = () => resolve(objectUrl);
+      reader.readAsDataURL(file);
+    };
+
+    img.src = objectUrl;
+  });
+}
+
+// -------------------------------------------------------------
 // PRODUCT CUSTOMIZER & PHOTO UPLOAD MODAL COMPONENT
 // -------------------------------------------------------------
 function ProductCustomizerModal({ product, language, onClose, onConfirm }) {
@@ -1334,6 +1425,8 @@ function ProductCustomizerModal({ product, language, onClose, onConfirm }) {
   const [manualQuantity, setManualQuantity] = useState(1);
   const [copiesPerPhoto, setCopiesPerPhoto] = useState(1);
   const [photos, setPhotos] = useState([]);
+  const [isProcessingPhotos, setIsProcessingPhotos] = useState(false);
+  const [processingCount, setProcessingCount] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const fileInputRef = useRef(null);
@@ -1352,28 +1445,57 @@ function ProductCustomizerModal({ product, language, onClose, onConfirm }) {
   const unitPrice = computeUnitPrice(product, selectedFormat, effectiveQuantity);
   const currentPrice = unitPrice * effectiveQuantity;
 
-  const handleFiles = (fileList) => {
-    const valid = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
-    if (valid.length === 0) return;
+  const handleFiles = async (fileList) => {
+    if (!fileList || fileList.length === 0) return;
+    const fileArray = Array.from(fileList);
+    const valid = fileArray.filter(isImageFile);
 
-    Promise.all(
-      valid.map((file, idx) => {
-        return new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            resolve({
-              name: file.name || `foto_${Date.now()}_${idx + 1}.jpg`,
-              size: file.size,
-              dataUrl: e.target.result,
-              file
-            });
+    if (valid.length === 0) {
+      alert(
+        language === "it"
+          ? "Nessun file immagine valido rilevato. Per favore seleziona foto in formato JPG, PNG, WEBP o HEIC."
+          : "No valid image files found. Please select JPG, PNG, WEBP or HEIC photos."
+      );
+      return;
+    }
+
+    setIsProcessingPhotos(true);
+    setProcessingCount(valid.length);
+
+    try {
+      const processed = await Promise.all(
+        valid.map(async (file, idx) => {
+          const fileName = file.name || `foto_${Date.now()}_${idx + 1}.jpg`;
+          const objectUrl = URL.createObjectURL(file);
+          let thumbnail = null;
+          try {
+            thumbnail = await createOptimizedThumbnail(file, 800);
+          } catch {
+            thumbnail = objectUrl;
+          }
+
+          return {
+            name: fileName,
+            size: file.size,
+            dataUrl: thumbnail || objectUrl,
+            previewUrl: objectUrl,
+            file
           };
-          reader.readAsDataURL(file);
-        });
-      })
-    ).then((newPhotos) => {
-      setPhotos((prev) => [...prev, ...newPhotos]);
-    });
+        })
+      );
+
+      setPhotos((prev) => [...prev, ...processed]);
+    } catch (err) {
+      console.error("Errore elaborazione foto:", err);
+      alert(
+        language === "it"
+          ? "Si è verificato un errore durante l'elaborazione delle foto. Riprova."
+          : "An error occurred while processing photos. Please try again."
+      );
+    } finally {
+      setIsProcessingPhotos(false);
+      setProcessingCount(0);
+    }
   };
 
   const handleDrop = (e) => {
@@ -1400,7 +1522,7 @@ function ProductCustomizerModal({ product, language, onClose, onConfirm }) {
   };
 
   const safePhotoIndex = photos.length > 0 ? Math.min(selectedPhotoIndex, photos.length - 1) : 0;
-  const activePhoto = photos[safePhotoIndex]?.dataUrl || null;
+  const activePhoto = photos[safePhotoIndex]?.dataUrl || photos[safePhotoIndex]?.previewUrl || null;
 
   return createPortal(
     <div className="customizer-modal-overlay" onClick={onClose}>
@@ -1472,33 +1594,66 @@ function ProductCustomizerModal({ product, language, onClose, onConfirm }) {
               </div>
             )}
 
-            {/* Upload Dropzone */}
-            <div
+            {/* Upload Dropzone - Optimized for Mobile Tap & Desktop Drag */}
+            <label
+              htmlFor="eshop-customizer-file-input"
               className={`photo-dropzone ${isDragging ? "dragging" : ""} ${photos.length > 0 ? "has-photo" : ""}`}
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
             >
               <input
+                id="eshop-customizer-file-input"
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,.heic,.heif,.jpg,.jpeg,.png,.webp,.gif,.bmp"
                 multiple
-                style={{ display: "none" }}
+                className="photo-file-input-native"
                 onChange={(e) => {
-                  if (e.target.files && e.target.files.length > 0) {
-                    handleFiles(e.target.files);
-                  }
+                  const selected = e.target.files ? Array.from(e.target.files) : [];
                   e.target.value = "";
+                  if (selected.length > 0) {
+                    handleFiles(selected);
+                  }
                 }}
               />
               <IconUpload className="dropzone-icon" />
               <div className="dropzone-text">
-                <strong>{photos.length > 0 ? (language === "it" ? "Aggiungi altre foto o trascinale qui" : "Add more photos or drag here") : (language === "it" ? "Trascina qui la tua foto o clicca per caricarla" : "Drag and drop your photo or click to browse")}</strong>
-                <span>{language === "it" ? "Formati supportati: JPG, PNG, WEBP ad alta risoluzione" : "Supports high-res JPG, PNG, WEBP"}</span>
+                <strong>
+                  {photos.length > 0
+                    ? (language === "it" ? "Aggiungi altre foto o trascinale qui" : "Add more photos or drag here")
+                    : (language === "it" ? "Tocca qui per caricare le tue foto" : "Tap here to choose your photos")}
+                </strong>
+                <span>
+                  {language === "it"
+                    ? "Formati supportati: JPG, PNG, WEBP, HEIC (iPhone & Android)"
+                    : "Supported formats: JPG, PNG, WEBP, HEIC (iPhone & Android)"}
+                </span>
               </div>
-            </div>
+
+              {/* High-visibility thumb-friendly button for mobile devices */}
+              <div className="dropzone-mobile-action">
+                <span className="dropzone-mobile-btn">
+                  📸 {photos.length > 0
+                    ? (language === "it" ? "Aggiungi altre foto dal telefono" : "Add more photos from phone")
+                    : (language === "it" ? "Scegli foto da Galleria / Telefono" : "Choose photos from Gallery / Phone")}
+                </span>
+              </div>
+
+              {isProcessingPhotos && (
+                <div className="customizer-processing-badge">
+                  <span className="processing-spinner">⏳</span>
+                  <span>
+                    {language === "it"
+                      ? `Caricamento ed elaborazione di ${processingCount} foto in corso...`
+                      : `Loading and processing ${processingCount} photos...`}
+                  </span>
+                </div>
+              )}
+            </label>
           </div>
 
           {/* Right Column: Customization Controls */}
