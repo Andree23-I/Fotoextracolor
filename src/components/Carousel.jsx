@@ -16,10 +16,12 @@ function Carousel({ images, language = 'it' }) {
 
   useEffect(() => {
     // Auto slide every 6 seconds if not hovered
-    if (isHovered) return;
-    const timer = setInterval(nextSlide, 6000);
+    if (isHovered || !images || images.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 6000);
     return () => clearInterval(timer);
-  }, [currentIndex, isHovered, images.length]);
+  }, [isHovered, images]);
 
   if (!images || images.length === 0) return null;
 

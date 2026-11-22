@@ -12,15 +12,16 @@ import "./index.css";
 import Lightbox from "./components/Lightbox.jsx";
 import Carousel from "./components/Carousel.jsx";
 import Chatbot from "./components/Chatbot.jsx";
-import EcommerceShop from "./components/EcommerceShop.jsx";
 import logo from "./assets/logo.jpeg";
 import heroPhoto from "./assets/scuro.jpeg";
 import lightHeroPhoto from "./assets/chiaro.jpeg";
 import atelierPhoto from "./assets/hero_background.jpg";
 import { useVisitorTracker } from "./utils/visitorTracker.js";
 
-// Lazy-load admin route to prevent loading admin bundle in memory for regular visitors
+// Lazy-load routes and on-demand modals to optimize initial bundle size & load speed
 const AdminPage = lazy(() => import("./components/AdminPage.jsx"));
+const EcommerceShop = lazy(() => import("./components/EcommerceShop.jsx"));
+const PhotoUploadModal = lazy(() => import("./components/PhotoUploadModal.jsx"));
 
 // Hoisted static image asset collections (initialized once at module startup, reducing garbage collection & RAM)
 const STORIA_IMAGES = Object.values(
@@ -620,8 +621,6 @@ function GoogleReviewsWidget({ className = "", content }) {
   );
 }
 
-import PhotoUploadModal from "./components/PhotoUploadModal.jsx";
-
 function HeaderTray({ language, setLanguage, theme, toggleTheme, content, cartCount, onOpenCart, isEcommerceEnabled }) {
   const [clock, setClock] = useState(new Date());
 
@@ -1070,7 +1069,9 @@ function RoutedContent({ content, language, theme, onOpenPhotoModal }) {
           path="/shop" 
           element={
             isEcommerceEnabled ? (
-              <EcommerceShop content={content} language={language} theme={theme} />
+              <Suspense fallback={<div className="page-loading-spinner" style={{ minHeight: "60vh" }}></div>}>
+                <EcommerceShop content={content} language={language} theme={theme} />
+              </Suspense>
             ) : (
               <Navigate to="/" replace />
             )
@@ -2417,11 +2418,15 @@ function App() {
           theme={theme}
           onOpenPhotoModal={() => setPhotoModalOpen(true)}
         />
-        <PhotoUploadModal
-          isOpen={photoModalOpen}
-          onClose={() => setPhotoModalOpen(false)}
-          language={language}
-        />
+        {photoModalOpen && (
+          <Suspense fallback={null}>
+            <PhotoUploadModal
+              isOpen={photoModalOpen}
+              onClose={() => setPhotoModalOpen(false)}
+              language={language}
+            />
+          </Suspense>
+        )}
         <Chatbot translations={translations} />
       </div>
     </Router>

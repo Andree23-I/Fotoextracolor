@@ -29,6 +29,21 @@ export default defineConfig({
   base: "/",
   build: {
     outDir: "dist",
+    target: "es2022",
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("react") || id.includes("react-dom") || id.includes("react-router-dom")) {
+              return "vendor-react";
+            }
+            if (id.includes("jszip")) {
+              return "vendor-jszip";
+            }
+          }
+        },
+      },
+    },
   },
   server: {
     proxy: {
